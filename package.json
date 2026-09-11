@@ -1,0 +1,43 @@
+{
+  "name": "godaam",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Godaam - confidential agricultural lending vault (Hedera + Chainlink CRE + World ID)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "compile": "hardhat compile",
+    "test:contracts": "hardhat test",
+    "deploy:hedera": "hardhat run scripts/deploy.ts --network hederaTestnet",
+    "demo:lifecycle": "hardhat run scripts/demo-lifecycle.ts --network hederaTestnet",
+    "ats:issue": "tsx scripts/ats-issue-receipt.ts",
+    "cre:simulate": "npm --prefix workflows/risk-scoring run simulate"
+  },
+  "dependencies": {
+    "@hashgraph/asset-tokenization-sdk": "^1.12.0",
+    "@hashgraph/sdk": "^2.53.0",
+    "@tanstack/react-query": "^5.51.0",
+    "@worldcoin/idkit": "^1.3.0",
+    "next": "14.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "viem": "^2.21.0",
+    "wagmi": "^2.12.0"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "^5.0.2",
+    "@types/node": "^20.14.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.19",
+    "dotenv": "^16.4.5",
+    "hardhat": "^2.22.8",
+    "postcss": "^8.4.40",
+    "tailwindcss": "^3.4.7",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.4"
+  }
+}
