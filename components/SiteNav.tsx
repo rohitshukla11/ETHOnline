@@ -12,10 +12,21 @@ const tabs = [
 
 function Mark() {
   return (
-    <span
-      className="block h-[26px] w-[26px] rounded-[7px] bg-wheat"
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 22 22"
       aria-hidden="true"
-    />
+      fill="none"
+      stroke="rgb(var(--wheat))"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M11 20.5V8" />
+      <path d="M5.5 13.5 11 8l5.5 5.5" />
+      <path d="M5.5 9 11 3.5 16.5 9" />
+    </svg>
   );
 }
 

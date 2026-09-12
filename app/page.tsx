@@ -30,7 +30,12 @@ const steps = [
 export default function Home() {
   return (
     <div>
-      <section className="flex flex-col items-center px-2 pb-24 pt-24 text-center sm:pt-28">
+      {/* The hero owns the first screen, so how-it-works starts below the fold.
+          115px is the header plus main's top padding; svh rather than vh so
+          mobile browser chrome does not push the section taller than the
+          visible area. */}
+      <section className="flex min-h-[calc(100svh-115px)] flex-col items-center
+        justify-center px-2 pb-10 text-center">
         <span className="pill">Live on Hedera testnet</span>
 
         {/* The break is explicit rather than left to the wrap algorithm, which
