@@ -34,6 +34,8 @@ const config: Config = {
         "good-bg": c("good-bg"),
         "good-edge": c("good-edge"),
         bad: c("bad"),
+        connector: c("connector"),
+        "art-ctx": c("art-ctx"),
 
         // `stone` is used across screens inherited from the previous design. Pointing
         // the ramp at these tokens keeps every screen coherent while they are converted,

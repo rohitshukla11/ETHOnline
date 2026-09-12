@@ -29,6 +29,9 @@
   --good-edge: 27 61 42; /* #1B3D2A  status pill border */
   --bad: 248 113 113; /* #F87171  provenance warnings, refusals, overdue */
 
+  --connector: 38 38 43; /* #26262B  stepper connector lines */
+  --art-ctx: 58 58 66; /* #3A3A42  the container/context stroke in the step art */
+
   /* Intermediate greys, used only by the inherited `stone` ramp. */
   --s-50: 255 255 255;
   --s-100: 242 242 244;
@@ -127,6 +130,19 @@ h4 {
 
 .focal {
   @apply text-focal font-medium tabular-nums text-text;
+}
+
+@keyframes hiw-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.hiw-panel {
+  animation: hiw-fade 180ms ease-out;
 }
 
 /* ---------------------------------------------------------------------------
