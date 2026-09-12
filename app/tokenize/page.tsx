@@ -111,10 +111,12 @@ export default function TokenizePage() {
       <div>
         <h1 className="text-2xl font-bold">Tokenize your warehouse receipt</h1>
         <p className="mt-2 text-sm text-stone-400">
-          This mints an Asset Tokenization Studio security token on Hedera testnet with the
-          whitelist, freeze and controller modules enabled. Your address was added to the
-          control list when World ID verification passed - that whitelist is the only reason this
-          mint can succeed.
+          The warehouse receipt exists as an Asset Tokenization Studio security token on
+          Hedera - a real ERC-1400 instrument with an allowlist and controller powers,
+          issued by the warehouse operator. This mints the EVM collateral record the vault
+          lends against, and it is that record which your World ID verification unlocked:
+          without a verified nullifier onchain, KYC is never granted and nothing can be
+          minted to you.
         </p>
       </div>
       <VerificationGate>

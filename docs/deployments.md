@@ -75,7 +75,7 @@ cast call 0x4b7523a4697378155bdb11fe855ecb8f2571b6a5 "totalSupply()(uint256)" \
 
 | Setting | Value | Why |
 | --- | --- | --- |
-| **Approval list** | **Allowed** (`isWhiteList: true`) | An **allowlist**. This is the gate World ID verification drives |
+| **Approval list** | **Allowed** (`isWhiteList: true`) | An **allowlist**, so it fails closed. Administered by the token issuer through ATS — **not** driven by World ID; that gates `WarehouseReceipt` instead |
 | **Blocklist** | Not allowed | The ATS web app defaults to a blocklist, which **fails open** — any address nobody remembered to ban could hold the receipt. Deliberately inverted |
 | **Controllable** | Allowed | `controllerTransfer` / `controllerRedeem` — the forced transfer on liquidation |
 | **Internal KYC** | Deactivated | See below |
@@ -88,8 +88,19 @@ supplied file through `Terminal3Vc.vcFromBase64` and `verifyVc`, and throws `Inv
 unless it is a cryptographically signed W3C Verifiable Credential bound to the target
 address and this security. That requires a credential issuer — a KYC-provider
 integration, not a toggle. A production deployment would wire one; this demo enforces
-compliance through the allowlist instead, which is the gate that actually corresponds to
-World ID verification.
+compliance through the ATS allowlist instead.
+
+**These are two separate gates on two separate assets**, and the distinction matters:
+
+| | ATS equity `GWR-WHE` | `WarehouseReceipt` (EVM) |
+| --- | --- | --- |
+| Gate | approval list (`isWhiteList: true`) | `grantKyc`, World-ID-gated |
+| Administered by | the token issuer, via ATS | this protocol, on a verified nullifier |
+| Internal KYC | deactivated (needs a signed VC) | n/a |
+| Enforcement evidence | allowlist checked on every mint and transfer inside the diamond | four live reverts on testnet, see below |
+
+Adding an address to the ATS approval list is an issuer action. It is not performed by
+`/api/worldid/verify`, and a World ID verification does not place anyone on it.
 
 The link between this asset and the EVM collateral record is not retrofitted:
 `WarehouseReceipt.ReceiptData` has carried `atsTokenId` and `atsTokenAddress` since the

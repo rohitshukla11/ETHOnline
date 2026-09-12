@@ -76,21 +76,59 @@ npm run cre:simulate   # full simulation; needs CRE_API_KEY or `cre login`
   transfer on default — all demoed by [scripts/demo-lifecycle.ts](scripts/demo-lifecycle.ts)
   and [scripts/demo-liquidation.ts](scripts/demo-liquidation.ts)
 
-### ATS integration status
+### Two applications, two signers
 
-The Hedera asset is created through the published
-`@hashgraph/asset-tokenization-sdk`. That SDK is a TypeScript client; it is not
-importable from Solidity. ATS itself uses a diamond-based ERC-1400 implementation
-with partial ERC-3643 support in `packages/ats/contracts`.
+Issuance and lending are separate acts by separate parties, and the architecture reflects
+that rather than collapsing them.
 
-`WarehouseReceipt.sol` is therefore explicitly an EVM collateral adapter, not an
-ATS compliance implementation. Its local KYC, freeze, forced-transfer, and redeem
-functions preserve the vault's local test path, while the ATS token is linked through
-`atsTokenAddress` and `atsTokenId`. Before claiming full ATS contract integration,
-the adapter must be replaced or extended against the pinned ATS Solidity package and
-its deployed diamond interfaces. That refactor requires dependency installation and
-full Hardhat validation; it is intentionally not claimed as complete in this
-Node-free pass.
+| | Who | Tool | Signs with | Produces |
+| --- | --- | --- | --- | --- |
+| **Issue the receipt** | warehouse operator | Hedera's Asset Tokenization Studio web app | browser wallet (MetaMask) | ATS equity `GWR-WHE`, `0.0.10508257` |
+| **Lend against it** | farmer | this app | browser wallet | a loan from `GodaamVault` |
+
+**The link predates the token.** `WarehouseReceipt.ReceiptData` has carried `atsTokenId`
+and `atsTokenAddress` since the first commit; `.env` now holds the real values. The EVM
+collateral record was designed to reference an ATS asset from the outset.
+
+**Why not issue from a server route.** The ATS SDK's `SupportedWallets` offers only
+METAMASK, HWALLETCONNECT, DFNS, FIREBLOCKS and AWSKMS — there is no headless operator-key
+signer, so a server route cannot sign an issuance however it is written. A production
+deployment would use a custodial signer (DFNS / Fireblocks / AWS KMS).
+`scripts/ats-issue-receipt.ts` holds the same configuration in scripted form and
+typechecks against the SDK; only the signing path is unavailable.
+
+That constraint turns out to match the domain. Issuing a warehouse receipt is a one-time
+act by a licensed operator against physical grain in a certified warehouse — it is
+*supposed* to involve a deliberate human signature, not a server loop. A farmer opening a
+loan never issues anything; they pledge a receipt that already exists.
+
+### Two compliance gates, on two assets
+
+Easy to conflate, so stated explicitly:
+
+| | ATS equity `GWR-WHE` | `WarehouseReceipt` (EVM) |
+| --- | --- | --- |
+| Gate | approval list, `isWhiteList: true` | `grantKyc`, World-ID-gated |
+| Administered by | the token issuer, through ATS | this protocol, on a verified nullifier |
+| Internal KYC | **deactivated** | n/a |
+| Evidence | allowlist enforced inside the diamond on every mint and transfer | four live reverts on Hedera testnet |
+
+**A World ID verification does not place anyone on the ATS approval list.** It unlocks
+`WarehouseReceipt.grantKyc`, which is what the vault lends against.
+
+ATS internal KYC is deactivated because satisfying it is not an administrative action:
+`GrantKycCommandHandler` runs the supplied file through `Terminal3Vc.vcFromBase64` and
+`verifyVc`, and throws `InvalidVc` unless it is a cryptographically signed W3C Verifiable
+Credential bound to the target address and that security. That requires a credential
+issuer — a KYC-provider integration, not a UI toggle, and nothing in the interface
+indicates it. Compliance is enforced by the allowlist instead, which fails closed.
+
+### Adapter status
+
+The vault operates on `WarehouseReceipt`, not on the ATS token. The six call sites are
+mapped and the adapter designed in
+[docs/ats-adapter-plan.md](docs/ats-adapter-plan.md); it is deferred because redeploying
+forfeits five `exact_match` verifications.
 
 ### Chainlink — Best Confidential Workflow
 - `handlerInTee` registered with `{ confidential: true }` in
@@ -119,6 +157,22 @@ Node-free pass.
   reference never transits the public network. See
   [docs/cre-integration-notes.md](docs/cre-integration-notes.md) for the SDK gotchas and
   the one unresolved architectural constraint (CRE has no Hedera chain selector)
+
+### Extra credit
+
+- **Oracle integration for NAV** — [`contracts/CollateralNavOracle.sol`](contracts/CollateralNavOracle.sol)
+  reads a Chainlink price feed on Hedera testnet with a staleness threshold, and reports
+  the provenance of every component. **Chainlink publishes no agricultural feed on
+  Hedera** — the seven available are HBAR, USDC, ETH, BTC, LINK, DAI and USDT against USD
+  — so the crop appraisal is operator-administered and the feed supplies the settlement
+  currency reference only. `navOf` returns `cropSource` and `referenceSource` separately
+  so the two can never be confused, and a stale answer degrades to `None` rather than
+  being reported as current. Eight tests cover the degradation paths
+- **Upstream contribution** — two reproducible first-install bugs in
+  `hashgraph/asset-tokenization-studio`, written up in
+  [docs/upstream-ats-issue.md](docs/upstream-ats-issue.md): an `HH19` error that masks an
+  `ERR_REQUIRE_ESM` from `did-jwt → @scure/base@2`, and a `prepare` hook invoking
+  `hardhat` before `node_modules` exists
 
 ### World — Selfie Check
 - Gate, not a checkmark: `WarehouseReceipt.grantKyc` reverts with

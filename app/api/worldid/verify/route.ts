@@ -9,7 +9,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Verifies a World ID proof, then attests the nullifier onchain and grants ATS KYC.
+ * Verifies a World ID proof, then attests the nullifier onchain and grants KYC on
+ * WarehouseReceipt.
+ *
+ * NOT the ATS token. These are two separate compliance mechanisms on two separate
+ * assets: WarehouseReceipt.grantKyc is World-ID-gated and enforced by this protocol;
+ * the ATS equity's gate is its own approval list, administered by the token issuer
+ * through Asset Tokenization Studio. See docs/deployments.md.
  * The proof is checked server-side; the client can never self-declare verification.
  *
  * `worldIdResult` is IDKit's completion payload, forwarded verbatim. It is NOT
@@ -71,7 +77,9 @@ export async function POST(req: Request) {
   });
   await publicClient.waitForTransactionReceipt({ hash: txHash });
 
-  // Verification immediately unlocks the ATS compliance whitelist.
+  // Verification immediately unlocks WarehouseReceipt's KYC whitelist - the EVM
+  // collateral record. The ATS security token has its own approval list, which is not
+  // touched here.
   const kycHash = await wallet.writeContract({
     address: addresses.warehouseReceipt,
     abi: warehouseReceiptAbi,

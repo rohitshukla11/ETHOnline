@@ -258,7 +258,46 @@ inconvenience.
 
 ---
 
-## Finding 6 — blocklist vs allowlist on credential checks
+## Finding 6 — no World ID credential is obtainable in India
+
+Not a bug, and the most consequential finding for us.
+
+**The situation.** Godaam targets Indian farmers. Of World's credentials:
+
+- **Orb** — Orb services have been paused in India since 2023. Not obtainable.
+- **Document** — NFC passport or national ID, but Indian documents are not supported.
+  Aadhaar is not NFC, and older passports have no chip.
+- **Selfie Check** — obtainable, but access-gated behind a Beta request with no stated
+  turnaround (Finding 5).
+
+So for the users this protocol exists for, **there is no credential that can be obtained
+today without an access grant**. That is not a limitation we can engineer around: it
+determines whether the product can exist in its target market at all.
+
+**Why it matters beyond us.** Proof of personhood is most valuable where identity
+infrastructure is weakest and Sybil attacks are cheapest — undercollateralised lending in
+emerging markets is close to the canonical use case. India is the largest such market,
+and it is the one where the credential set is thinnest.
+
+**What we did.** Built the full 4.0 request path, enforced the nullifier gate onchain and
+proved it with four live reverts, and requested Selfie Check access. The onchain guarantee
+— one claim per identity per action — holds regardless of which credential produces the
+nullifier, so the architecture is credential-agnostic by design. What we cannot do is
+complete a proof.
+
+**Suggested fix,** in the order we would value them:
+
+1. Publish a per-country credential availability matrix. We discovered the Orb and
+   Document gaps by attempting them, one at a time.
+2. Prioritise Document support for Indian passports, which do carry an NFC chip in
+   current e-passport issues.
+3. Treat Selfie Check access requests from teams building for markets with no other
+   credential as a distinct case — it is the only route available, not one option among
+   several.
+
+---
+
+## Finding 7 — blocklist vs allowlist on credential checks
 
 Our own bug, but the shape is general.
 

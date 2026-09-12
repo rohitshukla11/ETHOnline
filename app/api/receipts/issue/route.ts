@@ -8,8 +8,17 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Issues the ATS security token for a warehouse receipt and mints the EVM compliance
- * mirror. The ATS SDK call is done server-side because it needs the Hedera operator key.
+ * Mints the EVM collateral record for a warehouse receipt, and optionally issues the
+ * corresponding ATS security token.
+ *
+ * Two assets, two compliance mechanisms. The EVM record (WarehouseReceipt) is gated by
+ * World ID: grantKyc reverts without a nullifier onchain. The ATS equity is gated by its
+ * own approval list, administered through Asset Tokenization Studio by the token issuer.
+ * Minting here does not touch the ATS approval list.
+ *
+ * The ATS branch below is inert in practice - the SDK exposes no headless signer, so a
+ * server route cannot sign an issuance. The live token was issued through the ATS web
+ * app with a browser wallet; see docs/deployments.md.
  *
  * `scripts/ats-issue-receipt.ts` holds the full ATS flow (createEquity -> control list ->
  * issue). This route reuses it when ATS env vars are present, and otherwise mints only the

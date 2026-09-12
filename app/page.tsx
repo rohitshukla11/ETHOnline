@@ -11,7 +11,7 @@ const steps = [
   {
     n: "02",
     title: "Tokenize your warehouse receipt",
-    body: "Crop, grade, quantity, storage location and expiry are issued as an Asset Tokenization Studio security token on Hedera, whitelisted to your verified address only.",
+    body: "Crop, grade, quantity, storage location and expiry are issued as an Asset Tokenization Studio security token on Hedera - a real ERC-1400 instrument with an allowlist and controller powers. The EVM collateral record that the vault lends against is whitelisted to your verified address only.",
     href: "/tokenize",
     sponsor: "Hedera",
   },

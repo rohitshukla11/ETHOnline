@@ -127,7 +127,9 @@ describe("Godaam", () => {
     });
   });
 
-  describe("ATS compliance controls", () => {
+  // WarehouseReceipt's own controls, NOT the ATS token's. The ATS equity enforces its
+  // approval list inside the diamond and is not exercised by this suite.
+  describe("WarehouseReceipt compliance controls", () => {
     it("blocks transfers to non-KYC addresses", async () => {
       const ctx = await deployAll();
       await verifiedFarmerWithReceipt(ctx, ctx.farmer);
