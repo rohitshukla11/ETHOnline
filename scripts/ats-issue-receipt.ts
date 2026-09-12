@@ -91,12 +91,27 @@ export async function issueReceiptToken(spec: ReceiptSpec) {
     isin: `IN${Date.now().toString().slice(-10)}`,
     decimals: 0,
     // Compliance switches - all ON, this is a regulated collateral instrument.
+    // TRUE = allowlist. The ATS web app's equivalent toggle defaults to `isBlocklist:
+    // true`, i.e. isWhiteList FALSE - a denylist that fails open, letting any address
+    // nobody remembered to ban hold the receipt. The allowlist is the gate World ID
+    // verification drives, so it must be explicit here.
     isWhiteList: true,
     isControllable: true,
     isMultiPartition: false,
     arePartitionsProtected: false,
     clearingActive: false,
-    internalKycActivated: true,
+    // FALSE, deliberately. ATS internal KYC is not a toggle you satisfy with an
+    // admin click: GrantKycCommandHandler runs the supplied file through
+    // `Terminal3Vc.vcFromBase64` then `verifyVc`, and throws InvalidVc unless it is a
+    // cryptographically signed W3C Verifiable Credential bound to the target address
+    // and this security. That needs a real credential issuer, which is a KYC-provider
+    // integration rather than a configuration flag.
+    //
+    // With this false and no external KYC lists attached, the mint's KYC check passes
+    // (checkInternalKyc short-circuits; isExternallyGranted loops over zero providers
+    // and returns true). Compliance is enforced by the CONTROL LIST below, which is
+    // what World ID verification actually gates.
+    internalKycActivated: false,
     diamondOwnerAccount: required("HEDERA_OPERATOR_ID"),
     numberOfShares: String(spec.quantityKg),
     nominalValue: "1",
@@ -108,7 +123,10 @@ export async function issueReceiptToken(spec: ReceiptSpec) {
     conversionRight: false,
     redemptionRight: true,
     putRight: false,
-    dividendRight: 1,
+    // 0 = NONE. Stored grain generates no income stream, so there is nothing to
+    // distribute. The enum is NONE=0, PREFERRED=1, COMMON=2; this was 1 (PREFERRED),
+    // which was an unconsidered default rather than a decision.
+    dividendRight: 0,
     configId: "0x0000000000000000000000000000000000000000000000000000000000000000",
     configVersion: 0,
     externalPausesIds: [],

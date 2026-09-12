@@ -62,8 +62,14 @@ npm run cre:simulate   # full simulation; needs CRE_API_KEY or `cre login`
 ## Sponsor checklist
 
 ### Hedera — Tokenization of Anything
-- Real ATS SDK issuance, control-list whitelisting and `controllerTransfer` in
-  [scripts/ats-issue-receipt.ts](scripts/ats-issue-receipt.ts)
+- **A real ATS security token, issued on Hedera testnet:** `GWR-WHE`,
+  [`0.0.10508257`](https://hashscan.io/testnet/contract/0.0.10508257), 42,000 units where
+  **one token is one kilogram of wheat**, created through the Asset Tokenization Studio
+  web app via the pre-deployed testnet factory. Configuration, compliance settings and
+  the issuance transaction are in [docs/deployments.md](docs/deployments.md)
+- Compliance is an **allowlist** (`isWhiteList: true`), not the blocklist the ATS UI
+  defaults to — a blocklist fails open. `scripts/ats-issue-receipt.ts` holds the same
+  configuration in scripted form
 - EVM collateral adapter with local KYC / freeze / seizure / redemption controls in
   [contracts/WarehouseReceipt.sol](contracts/WarehouseReceipt.sol)
 - Lifecycle ops beyond issuance: freeze on pledge, compliance-blocked transfer, forced

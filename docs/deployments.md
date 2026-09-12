@@ -13,6 +13,10 @@
 - **Deployer:** [`0x033588A8025F47128cf7B102412b81Ca43c2C7f0`](https://hashscan.io/testnet/account/0x033588A8025F47128cf7B102412b81Ca43c2C7f0) — Hedera `0.0.10498991`
 - **World ID attestor:** [`0xff67f768bbfb28793920383cEDbb237cd8136eb6`](https://hashscan.io/testnet/account/0xff67f768bbfb28793920383cedbb237cd8136eb6) — Hedera `0.0.10498999`
 - **Compiler:** solc `0.8.24+commit.e11b9ed9`, optimizer on (200 runs), `viaIR`, EVM `cancun`
+- **ATS factory/resolver age:** the pre-deployed factory `0.0.9213391` and resolver
+  `0.0.9212226` were created 12 June 2026. Hedera resets testnet quarterly, so the same
+  caveat as our own contracts applies — a dead link means a reset, not a fabricated
+  deployment.
 - **Verification:** Sourcify (chain 296 natively supported). HashScan's in-app form is
   disabled and the legacy `server-verify.hashscan.io` endpoint is a deprecated forwarder,
   so it is not configured in `hardhat.config.ts`.
@@ -37,6 +41,59 @@ Verify independently:
 ```bash
 curl -s https://sourcify.dev/server/v2/contract/296/<address> | jq '{match, runtimeMatch}'
 ```
+
+## The ATS security token (Hedera bounty requirement 1)
+
+Issued **12 September 2026, 19:53 UTC** through Hedera's **Asset Tokenization Studio web
+application**, signed with a browser wallet. This is a real ERC-1400 security token
+created via the pre-deployed testnet factory — not our own contract imitating one.
+
+| | |
+| --- | --- |
+| **Name / Symbol** | Godaam Receipt Wheat / `GWR-WHE` |
+| **Hedera ID** | [`0.0.10508257`](https://hashscan.io/testnet/contract/0.0.10508257) |
+| **EVM address** | [`0x4b7523a4697378155bdb11fe855ecb8f2571b6a5`](https://hashscan.io/testnet/contract/0x4b7523a4697378155bdb11fe855ecb8f2571b6a5) |
+| **ISIN** | `INGODAAMWHE3` |
+| **Decimals** | `0` — whole kilograms |
+| **Max supply** | `42000 GWR-WHE` |
+| **Total supply** | `42000 GWR-WHE` (minted) |
+| **Issuance tx** | [`0xc1f77f11…b70814`](https://hashscan.io/testnet/transaction/0xc1f77f1162bb11608c6ab73e3825592752235e5ffcb9b2bc25aedcebf5b70814) |
+| **Holder** | `0.0.10498991` — `balanceOf` = 42000 |
+| **Factory / Resolver** | `0.0.9213391` / `0.0.9212226` (canonical testnet, pre-deployed) |
+
+**One token is one kilogram.** `numberOfShares` carries the actual quantity of grain, so
+the share count is not decorative — it *is* the receipt.
+
+Verify independently:
+
+```bash
+cast call 0x4b7523a4697378155bdb11fe855ecb8f2571b6a5 "totalSupply()(uint256)" \
+  --rpc-url https://testnet.hashio.io/api
+```
+
+### Compliance configuration
+
+| Setting | Value | Why |
+| --- | --- | --- |
+| **Approval list** | **Allowed** (`isWhiteList: true`) | An **allowlist**. This is the gate World ID verification drives |
+| **Blocklist** | Not allowed | The ATS web app defaults to a blocklist, which **fails open** — any address nobody remembered to ban could hold the receipt. Deliberately inverted |
+| **Controllable** | Allowed | `controllerTransfer` / `controllerRedeem` — the forced transfer on liquidation |
+| **Internal KYC** | Deactivated | See below |
+| **Compliance / Identity Registry** | `0.0.0` | No external ERC-3643 modules. The compliance decision stays in the layer the protocol controls |
+| Rights | Liquidation, Redemption | A claim on the grain, and the right to redeem it. No voting, dividend `NONE` |
+
+**On internal KYC, stated plainly.** It was enabled at issuance and then deactivated,
+because satisfying it is not an administrative action. `GrantKycCommandHandler` runs the
+supplied file through `Terminal3Vc.vcFromBase64` and `verifyVc`, and throws `InvalidVc`
+unless it is a cryptographically signed W3C Verifiable Credential bound to the target
+address and this security. That requires a credential issuer — a KYC-provider
+integration, not a toggle. A production deployment would wire one; this demo enforces
+compliance through the allowlist instead, which is the gate that actually corresponds to
+World ID verification.
+
+The link between this asset and the EVM collateral record is not retrofitted:
+`WarehouseReceipt.ReceiptData` has carried `atsTokenId` and `atsTokenAddress` since the
+first commit, and `.env` now holds the real values.
 
 ## A note on the contract comments
 
@@ -89,8 +146,11 @@ Reproduce with `npm run check:roles` and
 
 ## Not yet deployed
 
-- **ATS security token.** `HEDERA_OPERATOR_KEY` requires a DER-encoded ED25519 key; both
-  accounts above are ECDSA. Separately, the ATS SDK's `SupportedWallets` offers no
-  headless operator-key signer. See the ATS section in the README.
+- **ATS issuance from a server route.** The asset above was issued through the ATS **web
+  application** with a browser wallet, which is what the bounty accepts and what works.
+  The scripted path in `scripts/ats-issue-receipt.ts` still cannot run headlessly: the
+  SDK's `SupportedWallets` offers only METAMASK / HWALLETCONNECT / DFNS / FIREBLOCKS /
+  AWSKMS, so a server route would need a custodial signer. The script's configuration is
+  correct and typechecks against the SDK; only the signing path is unavailable.
 - **CRE workflow.** Parked at the `cre login` gate; the vault's forwarder is the local
   `MockCreForwarder` until a real CRE deployment exists.
