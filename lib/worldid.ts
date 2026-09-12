@@ -1,5 +1,7 @@
 import "server-only";
 
+import { checkVerificationLevel } from "./worldid-policy";
+
 const WORLD_API_BASE = process.env.WORLD_API_BASE ?? "https://developer.worldcoin.org";
 
 export type WorldProof = {
@@ -53,19 +55,17 @@ export async function verifyWorldProof(
     };
   }
 
-  // Selfie Check must be an actual face-verified level, not a device-only proof.
-  const level = String(body.verification_level ?? proof.verification_level);
-  if (level === "device") {
-    return {
-      success: false,
-      code: "insufficient_level",
-      detail: "Godaam requires Selfie Check (orb/face), not a device-level proof",
-    };
+  // Allowlist, not blocklist - see lib/worldid-policy.ts for why.
+  const check = checkVerificationLevel(
+    body.verification_level ?? proof.verification_level
+  );
+  if (!check.ok) {
+    return { success: false, code: check.code, detail: check.detail };
   }
 
   return {
     success: true,
     nullifierHash: BigInt(proof.nullifier_hash),
-    verificationLevel: level,
+    verificationLevel: check.level,
   };
 }

@@ -20,7 +20,8 @@
     "cre:verify": "bun run --cwd workflows/risk-scoring verify",
     "cre:typecheck": "bun run --cwd workflows/risk-scoring typecheck",
     "check:balances": "cross-env TS_NODE_PROJECT=tsconfig.hardhat.json hardhat run scripts/check-balances.ts --network hederaTestnet",
-    "check:roles": "cross-env TS_NODE_PROJECT=tsconfig.hardhat.json hardhat run scripts/check-roles.ts --network hederaTestnet"
+    "check:roles": "cross-env TS_NODE_PROJECT=tsconfig.hardhat.json hardhat run scripts/check-roles.ts --network hederaTestnet",
+    "test:worldid": "node --test test/worldid-policy.test.mjs"
   },
   "dependencies": {
     "@hashgraph/asset-tokenization-sdk": "^1.12.0",
