@@ -138,6 +138,71 @@ the ergonomic default should fail closed.
   ever be re-attestable to a new address after a lost key. Too strict and a farmer is locked
   out of their collateral forever; too loose and the Sybil gate leaks.
 
+## Live run against Hedera testnet
+
+### The gate is load-bearing (verified 12 Sep 2026)
+
+"No verification means no collateral means no loan", asserted against the deployed
+contracts rather than a local chain. Run it with
+`hardhat run scripts/check-gate-downstream.ts --network hederaTestnet`:
+
+```
+unverified address  0x94215adB606bE2e84324a0c671726a9799B55250
+isVerified()        false
+kycGranted()        false
+
+  1. grantKyc         REVERTED  WorldIdVerificationRequired(0x94215adB...B55250)
+  2. issue receipt    REVERTED  WorldIdVerificationRequired(0x94215adB...B55250)
+  3. requestLoan      REVERTED  NotVerified(0xff67F768bbFb28793920383cEDbb237cd8136eb6)
+
+control - already-verified address 0x033588A8025F47128cf7B102412b81Ca43c2C7f0
+  isVerified()  true
+  grantKyc      OK - gate opens for a verified address
+```
+
+The control matters: three reverts on their own could be caused by anything. The same
+call succeeding for a verified address is what shows the World ID check is the thing
+refusing.
+
+Two measurement notes, because both produced false results first:
+
+- `contract.fn.staticCall({ from })` does **not** test the contract. Hardhat rejects an
+  unknown `from` with `transaction from mismatch` client-side, before the call reaches
+  the node. It looks exactly like the gate holding. Use raw `provider.call({ to, data,
+  from })`.
+- A freshly generated address has no Hedera account, so Hashio answers
+  `Sender account not found` and the contract is never reached. Testing a
+  *sender*-side gate needs an address that exists on chain but was never verified.
+
+### Attestor path, exercised on chain
+
+The calls the server route makes, signed by the attestor key
+([deployments.md](deployments.md) has the full table):
+
+| Call | Tx |
+| --- | --- |
+| `attestVerification` | `0xad31b3a7c1e868a1b6328e9f6d781c2494963006283980d116bef88562c44ad0` |
+| `grantKyc` | `0x300f14f371eedd5b9abe27411711e24daae53f6e30167b94599adf9cac6925e0` |
+| `issue` (receipt #1) | `0x706484b4a48b6180d2d74b5ed1c635cfe85973a54e3a9127e2ec27ccd44dc6b1` |
+
+### Still outstanding: the end-to-end HTTP path
+
+The app id `app_39a2a32523be6184e8d1e77b709e6250` is live — the Developer Portal
+resolves it — but the configured action is not yet created, so a proof cannot be
+completed:
+
+```
+real app id + configured action     403 {"code":"invalid_action","detail":"Action not found."}
+real app id + an invented action    400 {"code":"invalid_action","detail":"Action not found."}
+bogus app id (control)              404 {"code":"not_found","detail":"App not found."}
+```
+
+Until the action exists, the widget-to-chain run and the live Sybil rejection are not
+captured. The contract-level Sybil guarantee is covered by
+`rejects a reused nullifier from a second address`, which asserts
+`NullifierAlreadyUsed`; the API-layer rejection is the stronger artifact and is still
+pending.
+
 ## Disclosed trust assumption
 
 **World ID verification happens server-side against the Developer Portal, because Hedera has
