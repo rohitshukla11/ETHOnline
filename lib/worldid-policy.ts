@@ -16,9 +16,11 @@
 /**
  * Credentials that satisfy Godaam's proof-of-personhood gate.
  *
- * `orb` is what `app/verify/page.tsx` requests today. Selfie Check, when it lands,
- * reports its own level - add it here at the same time as the frontend switches, so
- * the request and the assertion can never drift apart silently.
+ * `orb` is what `app/verify/page.tsx` requests, and Orb is World's strongest
+ * proof-of-personhood credential. Selfie Check was the original design but needs
+ * World ID 4.0 RP registration (see docs/world-feedback.md); if that is taken on
+ * later, add its level here in the same change that switches the frontend, so the
+ * request and the assertion can never drift apart silently.
  */
 export const ACCEPTED_VERIFICATION_LEVELS = ["orb"] as const;
 

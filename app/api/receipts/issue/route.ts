@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   const wallet = createWalletClient({ account, chain: hederaTestnet, transport: http() });
   const publicClient = createPublicClient({ chain: hederaTestnet, transport: http() });
 
-  // WarehouseReceipt.issue reverts if the address never passed Selfie Check.
+  // WarehouseReceipt.issue reverts if the address never passed World ID verification.
   const kyc = await publicClient.readContract({
     address: addresses.warehouseReceipt,
     abi: warehouseReceiptAbi,
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
   });
   if (!kyc) {
     return NextResponse.json(
-      { error: "Address is not KYC-granted. Complete World ID Selfie Check first." },
+      { error: "Address is not KYC-granted. Complete World ID Orb verification first." },
       { status: 403 }
     );
   }

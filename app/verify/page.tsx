@@ -36,10 +36,10 @@ export default function VerifyPage() {
   return (
     <div className="mx-auto max-w-xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">World ID Selfie Check</h1>
+        <h1 className="text-2xl font-bold">World ID verification</h1>
         <p className="mt-2 text-sm text-stone-400">
           Undercollateralised credit only works if one person cannot become five borrowers.
-          Selfie Check produces a nullifier unique to you and this action; Godaam stores it
+          Orb verification produces a nullifier unique to you and this action; Godaam stores it
           onchain and refuses a second address that presents the same one. Without it, KYC
           is never granted and no warehouse receipt can be minted to you.
         </p>
@@ -67,7 +67,7 @@ export default function VerifyPage() {
             >
               {({ open }: { open: () => void }) => (
                 <button className="btn w-full" onClick={open}>
-                  Run Selfie Check
+                  Verify with World ID
                 </button>
               )}
             </IDKitWidget>

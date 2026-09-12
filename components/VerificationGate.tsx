@@ -6,7 +6,7 @@ import { useVerification } from "./useVerification";
 
 /**
  * Hard gate. Nothing in Godaam - not tokenization, not borrowing - renders until the
- * World ID Selfie Check nullifier is recorded onchain for the connected address.
+ * World ID Orb nullifier is recorded onchain for the connected address.
  */
 export function VerificationGate({ children }: { children: ReactNode }) {
   const { isConnected, isVerified, isLoading } = useVerification();
@@ -26,7 +26,7 @@ export function VerificationGate({ children }: { children: ReactNode }) {
   if (!isVerified) {
     return (
       <div className="card space-y-3 text-center">
-        <h3 className="text-lg font-semibold">Selfie Check required</h3>
+        <h3 className="text-lg font-semibold">World ID verification required</h3>
         <p className="text-sm text-stone-400">
           Godaam issues undercollateralised credit. One verified human = one borrower
           identity, enforced by the World ID nullifier stored onchain.

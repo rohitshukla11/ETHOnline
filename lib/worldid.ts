@@ -16,7 +16,7 @@ export type WorldVerifyResult =
   | { success: false; code: string; detail: string };
 
 /**
- * Verifies a World ID Selfie Check proof against the Developer Portal.
+ * Verifies a World ID Orb proof against the Developer Portal.
  * `signal` must be the farmer's wallet address so the proof cannot be replayed for
  * a different account.
  */

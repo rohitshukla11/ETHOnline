@@ -100,7 +100,7 @@ async function deliverAssessment(
 
 describe("Godaam", () => {
   describe("World ID gating", () => {
-    it("blocks KYC grant without a Selfie Check", async () => {
+    it("blocks KYC grant without World ID verification", async () => {
       const ctx = await deployAll();
       await expect(ctx.receipts.grantKyc(ctx.farmer.address)).to.be.revertedWithCustomError(
         ctx.receipts,

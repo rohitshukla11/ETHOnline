@@ -113,7 +113,7 @@ export default function TokenizePage() {
         <p className="mt-2 text-sm text-stone-400">
           This mints an Asset Tokenization Studio security token on Hedera testnet with the
           whitelist, freeze and controller modules enabled. Your address was added to the
-          control list when Selfie Check passed - that whitelist is the only reason this
+          control list when World ID verification passed - that whitelist is the only reason this
           mint can succeed.
         </p>
       </div>

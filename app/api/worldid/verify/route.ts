@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Verifies a Selfie Check proof, then attests the nullifier onchain and grants ATS KYC.
+ * Verifies a World ID Orb proof, then attests the nullifier onchain and grants ATS KYC.
  * The proof is checked server-side; the client can never self-declare verification.
  */
 export async function POST(req: Request) {

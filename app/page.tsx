@@ -4,7 +4,7 @@ const steps = [
   {
     n: "01",
     title: "Prove you're a real farmer",
-    body: "World ID Selfie Check. The nullifier is written onchain against your address, so one human can never run two borrower identities.",
+    body: "World ID Orb verification - World's strongest proof of personhood. The nullifier is written onchain against your address, so one human can never run two borrower identities.",
     href: "/verify",
     sponsor: "World",
   },

@@ -127,7 +127,7 @@ export async function issueReceiptToken(spec: ReceiptSpec) {
   return security;
 }
 
-/** Step 2: whitelist the farmer. Call ONLY after World ID Selfie Check passed. */
+/** Step 2: whitelist the farmer. Call ONLY after World ID verification passed. */
 export async function grantAtsKyc(securityId: string, farmerAccountId: string) {
   await Security.addToControlList(
     new ControlListRequest({ securityId, targetId: farmerAccountId })

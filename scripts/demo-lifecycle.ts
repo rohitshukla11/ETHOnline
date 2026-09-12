@@ -2,7 +2,7 @@
  * End-to-end lifecycle demo against a live network (Hedera testnet by default).
  *
  * Covers every sponsor checkbox in one run:
- *   World  -> attest Selfie Check nullifier, KYC grant gated on it
+ *   World  -> attest Orb nullifier, KYC grant gated on it
  *   Hedera -> issue receipt, freeze, compliance-checked transfer, forced transfer
  *   CRE    -> deliver a TEE risk report through the forwarder, vault disburses
  *   Godaam -> repay installments, release collateral, then default + liquidate
@@ -176,7 +176,7 @@ async function main() {
   if (!(await receipts.kycGranted(borrower.address))) {
     await (await receipts.grantKyc(borrower.address)).wait();
   }
-  console.log("KYC granted (only possible because Selfie Check passed)");
+  console.log("KYC granted (only possible because World ID verification passed)");
 
   const issueTx = await receipts.issue(borrower.address, {
     cropType: "Wheat (HD-2967)",

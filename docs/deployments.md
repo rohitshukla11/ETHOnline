@@ -38,6 +38,21 @@ Verify independently:
 curl -s https://sourcify.dev/server/v2/contract/296/<address> | jq '{match, runtimeMatch}'
 ```
 
+## A note on the contract comments
+
+`WorldIdRegistry.sol` and `WarehouseReceipt.sol` still say "Selfie Check" in three NatSpec
+comments. The gate is actually World ID **Orb** (see
+[world-feedback.md](world-feedback.md) for why Selfie Check was dropped).
+
+Those comments are deliberately left alone: the deployed contracts are Sourcify-verified at
+`exact_match`, and editing any source byte — comments included — changes the metadata hash,
+so the repository source would no longer correspond to the verified bytecode. Correcting the
+wording would cost the Full Match unless the contracts are redeployed.
+
+The contracts are credential-agnostic in any case: they record and check a nullifier and
+never inspect which credential produced it. The credential is asserted off-chain in
+`lib/worldid-policy.ts`.
+
 ## Onchain wiring, read back from the deployed contracts
 
 `npm run check:roles` reads every value below from chain, not from

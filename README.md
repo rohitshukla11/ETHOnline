@@ -3,7 +3,7 @@
 **Confidential agricultural lending vault.** A farmer's grain sitting in a certified
 warehouse becomes onchain collateral; a Chainlink CRE Confidential Workflow underwrites the
 *farmer* inside a TEE so the protocol can lend more than the grain alone justifies; World ID
-Selfie Check makes sure one human can only ever be one borrower.
+World ID Orb verification makes sure one human can only ever be one borrower.
 
 ETHGlobal ETHOnline 2026 — Hedera / Chainlink / World tracks.
 
@@ -100,10 +100,20 @@ Node-free pass.
   [docs/cre-integration-notes.md](docs/cre-integration-notes.md) for the SDK gotchas and
   the one unresolved architectural constraint (CRE has no Hedera chain selector)
 
-### World — Selfie Check
+### World — Proof of personhood (Orb)
 - Gate, not a checkmark: `WarehouseReceipt.grantKyc` reverts with
   `WorldIdVerificationRequired` unless the nullifier is onchain, so no verification means no
   collateral, which means no loan
+- The credential is **World ID Orb** — World's strongest proof of personhood. Selfie Check
+  was the original design; it was deprioritized once the SDK showed that every IDKit preset
+  requires World ID 4.0 Relying Party registration regardless of the proof version it
+  returns. The reasoning is written up in [docs/world-feedback.md](docs/world-feedback.md)
+- The credential check is an allowlist, not a blocklist: `lib/worldid-policy.ts` asserts the
+  level equals `orb` and rejects everything else, so a future credential cannot satisfy the
+  gate by default
+- **This deployment targets the World staging environment**, so verification is completed
+  with the World App simulator rather than a live orb-verified identity. If you open the app
+  and cannot complete verification, that is the environment, not a fault
 - Nullifier reuse across addresses is rejected (`NullifierAlreadyUsed`)
 - Integration feedback: [docs/world-feedback.md](docs/world-feedback.md)
 
