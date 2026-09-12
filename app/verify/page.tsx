@@ -65,7 +65,7 @@ export default function VerifyPage() {
               handleVerify={onSuccess}
               onSuccess={() => {}}
             >
-              {({ open }) => (
+              {({ open }: { open: () => void }) => (
                 <button className="btn w-full" onClick={open}>
                   Run Selfie Check
                 </button>

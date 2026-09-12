@@ -51,11 +51,16 @@ async function main() {
       atsTokenId: process.env.ATS_TOKEN_ID || "0.0.0",
     })
   ).wait();
+  // Match the ReceiptIssued topic, not the topic count - the ERC-721 Transfer
+  // emitted alongside it also has 4 topics and would yield `from` instead.
+  const issuedTopic = receipts.interface.getEvent("ReceiptIssued")!.topicHash;
   const receiptId = receipts.interface.parseLog(
-    rc!.logs.find((l) => l.address === d.WarehouseReceipt && l.topics.length === 4)!
+    rc!.logs.find((l) => l.address === d.WarehouseReceipt && l.topics[0] === issuedTopic)!
   )!.args[0] as bigint;
   console.log(`Issued receipt #${receiptId}`);
 
+  // requestLoan pulls the receipt with safeTransferFrom, so the vault needs approval.
+  await (await receipts.connect(farmer).setApprovalForAll(d.GodaamVault, true)).wait();
   const reqRc = await (await vault.connect(farmer).requestLoan(receiptId)).wait();
   const loanId = vault.interface.parseLog(
     reqRc!.logs.find((l) => l.address === d.GodaamVault)!

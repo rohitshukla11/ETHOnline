@@ -250,10 +250,17 @@ contract GodaamVault is IReceiver, IERC721Receiver, Ownable, ReentrancyGuard {
     // 3. Repayment
     // ------------------------------------------------------------------
 
+    /// @notice What the borrower owes on the next installment.
+    /// @dev Every installment is `totalOwed / installmentCount` except the last, which is
+    ///      whatever is still outstanding. `installmentAmount` is a truncating division, so
+    ///      N equal payments can land a few units short of `totalOwed`; sweeping the
+    ///      remainder into the final installment guarantees that paying the full schedule
+    ///      settles the loan exactly and releases the collateral on time.
     function amountDue(uint256 loanId) public view returns (uint256) {
         Loan storage loan = _loans[loanId];
         if (loan.status != Status.Active) return 0;
         uint256 remaining = loan.totalOwed - loan.repaid;
+        if (uint256(loan.installmentsPaid) + 1 >= loan.installmentCount) return remaining;
         return loan.installmentAmount < remaining ? loan.installmentAmount : remaining;
     }
 

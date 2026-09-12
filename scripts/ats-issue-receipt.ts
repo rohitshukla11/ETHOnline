@@ -8,14 +8,16 @@
 import "dotenv/config";
 import {
   Network,
-  SDK,
   Security,
-  Factory,
-  Role,
+  Equity,
   CreateEquityRequest,
   GetAccountBalanceRequest,
   ControlListRequest,
-  SetMaxSupplyRequest,
+  InitializationRequest,
+  ConnectRequest,
+  IssueRequest,
+  ForceTransferRequest,
+  SupportedWallets,
 } from "@hashgraph/asset-tokenization-sdk";
 
 const required = (k: string) => {
@@ -34,31 +36,50 @@ export type ReceiptSpec = {
 };
 
 export async function initAts() {
-  await Network.init({
-    network: process.env.HEDERA_NETWORK ?? "testnet",
-    mirrorNode: {
-      name: "hedera-mirror",
-      baseUrl: "https://testnet.mirrornode.hedera.com/api/v1/",
-    },
-    rpcNode: {
-      name: "hashio",
-      baseUrl: process.env.HEDERA_TESTNET_RPC ?? "https://testnet.hashio.io/api",
-    },
-    factories: [{ id: required("ATS_FACTORY_ADDRESS"), environment: "testnet" }],
-    resolvers: [{ id: required("ATS_RESOLVER_ADDRESS"), environment: "testnet" }],
-  });
+  const network = process.env.HEDERA_NETWORK ?? "testnet";
+  const mirrorNode = {
+    name: "hedera-mirror",
+    baseUrl: "https://testnet.mirrornode.hedera.com/api/v1/",
+  };
+  const rpcNode = {
+    name: "hashio",
+    baseUrl: process.env.HEDERA_TESTNET_RPC ?? "https://testnet.hashio.io/api",
+  };
 
-  await Network.connect({
-    account: {
-      accountId: required("HEDERA_OPERATOR_ID"),
-      privateKey: {
-        key: required("HEDERA_OPERATOR_KEY"),
-        type: "ED25519",
+  // Factories/Resolvers aren't constructible from the package entrypoint; the
+  // factory + resolver pair goes in via `configuration` instead.
+  await Network.init(
+    new InitializationRequest({
+      network,
+      mirrorNode,
+      rpcNode,
+      configuration: {
+        factoryAddress: required("ATS_FACTORY_ADDRESS"),
+        resolverAddress: required("ATS_RESOLVER_ADDRESS"),
       },
-    },
-    network: process.env.HEDERA_NETWORK ?? "testnet",
-    wallet: 1, // SupportedWallets.CLIENT
-  });
+    })
+  );
+
+  await Network.connect(
+    new ConnectRequest({
+      account: {
+        accountId: required("HEDERA_OPERATOR_ID"),
+        privateKey: {
+          key: required("HEDERA_OPERATOR_KEY"),
+          type: "ED25519",
+        },
+      },
+      network,
+      mirrorNode,
+      rpcNode,
+      // NOTE: this SDK exposes no headless/operator-key wallet. SupportedWallets is
+      // { METAMASK, HWALLETCONNECT, DFNS, FIREBLOCKS, AWSKMS }, so a server-side
+      // issuance flow must go through a custodial signer (DFNS / Fireblocks / AWS KMS)
+      // via `custodialWalletSettings`. The operator-key path below will NOT sign
+      // headlessly and is unverified against a live network.
+      wallet: SupportedWallets.METAMASK,
+    })
+  );
 }
 
 /** Step 1: deploy the ATS security token representing this receipt. */
@@ -72,10 +93,10 @@ export async function issueReceiptToken(spec: ReceiptSpec) {
     // Compliance switches - all ON, this is a regulated collateral instrument.
     isWhiteList: true,
     isControllable: true,
-    isApproval: false,
     isMultiPartition: false,
     arePartitionsProtected: false,
     clearingActive: false,
+    internalKycActivated: true,
     diamondOwnerAccount: required("HEDERA_OPERATOR_ID"),
     numberOfShares: String(spec.quantityKg),
     nominalValue: "1",
@@ -88,17 +109,20 @@ export async function issueReceiptToken(spec: ReceiptSpec) {
     redemptionRight: true,
     putRight: false,
     dividendRight: 1,
-    factory: required("ATS_FACTORY_ADDRESS"),
-    resolver: required("ATS_RESOLVER_ADDRESS"),
     configId: "0x0000000000000000000000000000000000000000000000000000000000000000",
     configVersion: 0,
-    externalPauses: [],
-    externalControlLists: [],
-    externalKycLists: [],
+    externalPausesIds: [],
+    externalControlListsIds: [],
+    externalKycListsIds: [],
     erc20VotesActivated: false,
+    regulationType: 0,
+    regulationSubType: 0,
+    isCountryControlListWhiteList: false,
+    countries: "",
+    info: `${spec.storageLocation} | expires ${spec.expiryUnix}`,
   });
 
-  const { security } = await Factory.createEquity(request);
+  const { security } = await Equity.create(request);
   console.log(`ATS security token created: ${security.evmDiamondAddress} (${security.diamondAddress})`);
   return security;
 }
@@ -113,7 +137,9 @@ export async function grantAtsKyc(securityId: string, farmerAccountId: string) {
 
 /** Step 3: issue the units to the farmer. */
 export async function mintToFarmer(securityId: string, farmerAccountId: string, amount: number) {
-  await Security.issue({ securityId, targetId: farmerAccountId, amount: String(amount) } as never);
+  await Security.issue(
+    new IssueRequest({ securityId, targetId: farmerAccountId, amount: String(amount) })
+  );
   console.log(`Issued ${amount} units to ${farmerAccountId}`);
 }
 
@@ -124,12 +150,14 @@ export async function forceTransferOnDefault(
   to: string,
   amount: number
 ) {
-  await Security.controllerTransfer({
-    securityId,
-    sourceId: from,
-    targetId: to,
-    amount: String(amount),
-  } as never);
+  await Security.controllerTransfer(
+    new ForceTransferRequest({
+      securityId,
+      sourceId: from,
+      targetId: to,
+      amount: String(amount),
+    })
+  );
   console.log(`Controller-transferred ${amount} from ${from} to ${to} (default liquidation)`);
 }
 

@@ -8,15 +8,19 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "compile": "hardhat compile",
-    "test:contracts": "hardhat test",
-    "deploy:hedera": "hardhat run scripts/deploy.ts --network hederaTestnet",
-    "demo:lifecycle": "hardhat run scripts/demo-lifecycle.ts --network hederaTestnet",
+    "compile": "cross-env TS_NODE_PROJECT=tsconfig.hardhat.json hardhat compile",
+    "test:contracts": "cross-env TS_NODE_PROJECT=tsconfig.hardhat.json hardhat test",
+    "deploy:hedera": "cross-env TS_NODE_PROJECT=tsconfig.hardhat.json hardhat run scripts/deploy.ts --network hederaTestnet",
+    "demo:lifecycle": "cross-env TS_NODE_PROJECT=tsconfig.hardhat.json hardhat run scripts/demo-lifecycle.ts --network hederaTestnet",
     "ats:issue": "tsx scripts/ats-issue-receipt.ts",
     "cre:simulate": "bun run --cwd workflows/risk-scoring simulate",
+    "deploy:local": "cross-env TS_NODE_PROJECT=tsconfig.hardhat.json hardhat run scripts/deploy.ts --network localhost",
+    "demo:liquidation": "cross-env TS_NODE_PROJECT=tsconfig.hardhat.json hardhat run scripts/demo-liquidation.ts --network hederaTestnet",
     "cre:build": "bun run --cwd workflows/risk-scoring build",
     "cre:verify": "bun run --cwd workflows/risk-scoring verify",
-    "cre:typecheck": "bun run --cwd workflows/risk-scoring typecheck"
+    "cre:typecheck": "bun run --cwd workflows/risk-scoring typecheck",
+    "check:balances": "cross-env TS_NODE_PROJECT=tsconfig.hardhat.json hardhat run scripts/check-balances.ts --network hederaTestnet",
+    "check:roles": "cross-env TS_NODE_PROJECT=tsconfig.hardhat.json hardhat run scripts/check-roles.ts --network hederaTestnet"
   },
   "dependencies": {
     "@hashgraph/asset-tokenization-sdk": "^1.12.0",
@@ -36,11 +40,15 @@
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.19",
+    "cross-env": "^10.1.0",
     "dotenv": "^16.4.5",
     "hardhat": "^2.22.8",
     "postcss": "^8.4.40",
     "tailwindcss": "^3.4.7",
     "tsx": "^4.16.0",
     "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=20.17.0"
   }
 }

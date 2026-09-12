@@ -1,0 +1,10 @@
+{
+  "network": "hederaTestnet",
+  "chainId": 296,
+  "deployedAt": "2026-09-12T11:06:58.684Z",
+  "WorldIdRegistry": "0xE3a02179CCa05b438bd157E2E00434d28ec26984",
+  "MockUSDC": "0x2CEBEA8360D0c71B78f320F7CdF4D06486ad9DCd",
+  "WarehouseReceipt": "0x0F2b3D243BB0e882dE0aB9Ed0b2754e8f473EaD7",
+  "GodaamVault": "0x63Af372CEAa1d2C8dADF6Ea503c99edB1960d07d",
+  "CreForwarder": "0xaDFc7D556C20908151e8C3C56C65b6F45648C736"
+}

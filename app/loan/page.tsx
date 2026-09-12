@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { VerificationGate } from "@/components/VerificationGate";
 import { hashscanTx } from "@/lib/chains";
@@ -91,7 +91,14 @@ function RiskForm({ loanId, collateralValue }: { loanId: bigint; collateralValue
   );
 }
 
-function LoanCard({ loanId }: { loanId: bigint }) {
+function LoanCard({
+  loanId,
+  onOwnership,
+}: {
+  loanId: bigint;
+  onOwnership: (loanId: bigint, isMine: boolean) => void;
+}) {
+  const { address } = useAccount();
   const { writeContract, data: hash, isPending } = useWriteContract();
   const { isLoading: confirming } = useWaitForTransactionReceipt({ hash });
 
@@ -124,7 +131,18 @@ function LoanCard({ loanId }: { loanId: bigint }) {
     query: { refetchInterval: 5000 },
   });
 
-  if (!loan) return null;
+  // The vault numbers loans globally, so iterating 1..nextLoanId surfaces every borrower's
+  // loan. Only render the connected farmer's own, and tell the parent either way so it can
+  // show an accurate empty state.
+  const isMine = Boolean(
+    loan && address && loan.borrower.toLowerCase() === address.toLowerCase()
+  );
+
+  useEffect(() => {
+    onOwnership(loanId, isMine);
+  }, [loanId, isMine, onOwnership]);
+
+  if (!loan || !isMine) return null;
   const status = LOAN_STATUS[Number(loan.status)] ?? "Unknown";
   const active = status === "Active";
 
@@ -250,6 +268,51 @@ function LoanCard({ loanId }: { loanId: bigint }) {
   );
 }
 
+/**
+ * Installments total more than the principal, so a farmer who only ever received the
+ * disbursement cannot finish repaying. MockUSDC.faucet() mints 5,000 gUSDC once a day on
+ * testnet; without a button for it the demo dead-ends on the first installment.
+ */
+function GusdcBalance() {
+  const { address } = useAccount();
+  const { writeContract, data: hash, isPending } = useWriteContract();
+  const { isLoading: confirming } = useWaitForTransactionReceipt({ hash });
+
+  const { data: balance, refetch } = useReadContract({
+    address: addresses.mockUsdc,
+    abi: erc20Abi,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: { enabled: Boolean(address), refetchInterval: 5000 },
+  });
+
+  useEffect(() => {
+    if (!confirming && hash) void refetch();
+  }, [confirming, hash, refetch]);
+
+  return (
+    <div className="card flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <p className="text-sm text-stone-400">Your balance</p>
+        <p className="font-mono text-lg text-stone-100">{formatUsdc(balance)}</p>
+      </div>
+      <button
+        className="btn-ghost whitespace-nowrap"
+        disabled={isPending || confirming}
+        onClick={() =>
+          writeContract({
+            address: addresses.mockUsdc,
+            abi: erc20Abi,
+            functionName: "faucet",
+          })
+        }
+      >
+        {isPending || confirming ? "Claiming..." : "Get 5,000 test gUSDC"}
+      </button>
+    </div>
+  );
+}
+
 function LoanWorkspace() {
   const { address } = useAccount();
   const [receiptId, setReceiptId] = useState("1");
@@ -283,8 +346,22 @@ function LoanWorkspace() {
     ? Array.from({ length: Number(nextLoanId) - 1 }, (_, i) => BigInt(i + 1))
     : [];
 
+  const [myLoanIds, setMyLoanIds] = useState<Set<string>>(new Set());
+  const onOwnership = useCallback((id: bigint, isMine: boolean) => {
+    setMyLoanIds((prev) => {
+      const key = id.toString();
+      if (prev.has(key) === isMine) return prev;
+      const next = new Set(prev);
+      if (isMine) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  }, []);
+
   return (
     <div className="space-y-6">
+      <GusdcBalance />
+
       <div className="card space-y-4">
         <h2 className="font-semibold">1. Pledge a receipt</h2>
         <div className="flex gap-2">
@@ -339,10 +416,14 @@ function LoanWorkspace() {
 
       <div className="space-y-2">
         <h2 className="font-semibold">3. Your loans</h2>
-        {loanIds.length === 0 && <p className="text-sm text-stone-500">No loans yet.</p>}
+        {myLoanIds.size === 0 && (
+          <p className="text-sm text-stone-500">
+            No loans yet. Pledge a receipt above to open one.
+          </p>
+        )}
         <div className="grid gap-4">
           {loanIds.map((id) => (
-            <LoanCard key={id.toString()} loanId={id} />
+            <LoanCard key={id.toString()} loanId={id} onOwnership={onOwnership} />
           ))}
         </div>
       </div>

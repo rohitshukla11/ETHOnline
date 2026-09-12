@@ -189,8 +189,13 @@ async function main() {
     atsTokenId: process.env.ATS_TOKEN_ID || "0.0.0",
   });
   const issueRc = await issueTx.wait();
+  // ReceiptIssued has 3 topics; the ERC-721 Transfer emitted alongside it has 4, so
+  // match on the event topic rather than the topic count.
+  const issuedTopic = receipts.interface.getEvent("ReceiptIssued")!.topicHash;
   const receiptId = receipts.interface.parseLog(
-    issueRc!.logs.find((l) => l.address === d.WarehouseReceipt && l.topics.length === 4)!
+    issueRc!.logs.find(
+      (l) => l.address === d.WarehouseReceipt && l.topics[0] === issuedTopic
+    )!
   )!.args[0] as bigint;
   console.log(`Issued receipt #${receiptId}, appraised ${fmt(USDC(400))}`);
 
@@ -204,6 +209,10 @@ async function main() {
   }
 
   console.log("\n=== 3. LOAN REQUEST (collateral escrowed + frozen) ===");
+  // requestLoan pulls the receipt with safeTransferFrom, so the vault needs approval.
+  await (
+    await receipts.connect(borrower).setApprovalForAll(d.GodaamVault, true)
+  ).wait();
   const reqRc = await (await vault.connect(borrower).requestLoan(receiptId)).wait();
   const loanId = vault.interface.parseLog(
     reqRc!.logs.find((l) => l.address === d.GodaamVault)!

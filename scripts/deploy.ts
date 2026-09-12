@@ -42,6 +42,18 @@ async function main() {
   await (await receipts.grantRole(CONTROLLER_ROLE, await vault.getAddress())).wait();
   console.log("Granted CONTROLLER_ROLE to GodaamVault");
 
+  // The attestor signs both server routes: /api/worldid/verify calls grantKyc and
+  // /api/receipts/issue calls issue, and both are ISSUER_ROLE-gated. Without this grant
+  // the World ID flow half-succeeds - the nullifier lands onchain, then KYC reverts with
+  // AccessControlUnauthorizedAccount and the farmer can never hold collateral.
+  const ISSUER_ROLE = await receipts.ISSUER_ROLE();
+  if (attestor.toLowerCase() !== deployer.address.toLowerCase()) {
+    await (await receipts.grantRole(ISSUER_ROLE, attestor)).wait();
+    console.log(`Granted ISSUER_ROLE to attestor ${attestor}`);
+  } else {
+    console.log(`Attestor is the deployer; ISSUER_ROLE already held by ${attestor}`);
+  }
+
   // Local/dev: wire a mock forwarder so the TEE report path works without a live CRE node.
   let forwarderAddress = process.env.CRE_FORWARDER_ADDRESS ?? "";
   if (!forwarderAddress) {

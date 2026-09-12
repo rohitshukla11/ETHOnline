@@ -20,11 +20,15 @@ test/               Full lifecycle tests incl. default & liquidation
 
 ## Setup
 
-```powershell
+Requires **Node >= 20.17** (see `.nvmrc`) and, for the Chainlink workflow only,
+**Bun >= 1.2.21** plus the **`cre` CLI**. If `node` is not on your `PATH`, check
+`~/.local/node/bin` before reinstalling.
+
+```bash
 npm install
-Copy-Item .env.example .env   # then fill it in
+cp .env.example .env          # then fill it in — see the comments in that file
 npm run compile
-npm run test:contracts
+npm run test:contracts        # 17 passing
 npm run deploy:hedera
 npm run dev
 ```
@@ -110,4 +114,4 @@ Node-free pass.
 | World ID gating | `npm run dev` → /verify, then try /tokenize while unverified |
 | Hedera lifecycle | `CRE_LIVE=true npm run demo:lifecycle` (falls back to a hand-encoded report, and says so, when `CRE_LIVE` is unset) |
 | CRE confidential workflow | `npm run cre:verify`, then `npm run cre:simulate` |
-| Default → liquidation | `npx hardhat run scripts/demo-liquidation.ts --network hederaTestnet` |
+| Default → liquidation | `npm run demo:liquidation` |

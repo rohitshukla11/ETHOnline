@@ -81,6 +81,7 @@ async function verifiedFarmerWithReceipt(
     atsTokenId: "0.0.1234567",
   });
   await tx.wait();
+  await ctx.receipts.connect(who).setApprovalForAll(await ctx.vault.getAddress(), true);
   return 1n;
 }
 
@@ -226,6 +227,46 @@ describe("Godaam", () => {
       expect(loan.status).to.equal(3); // Repaid
       expect(await ctx.receipts.ownerOf(1n)).to.equal(ctx.farmer.address);
       expect(await ctx.receipts.tokenFrozen(1n)).to.equal(false);
+    });
+
+    it("settles exactly when totalOwed does not divide evenly by the installment count", async () => {
+      // Regression for the truncating division in `installmentAmount`. A principal of 777
+      // at 1337bps over 7 x 30d leaves a remainder that `totalOwed / installmentCount`
+      // throws away, so N equal payments used to land short of `totalOwed`: the loan stayed
+      // Active and the collateral was never released. The final installment must sweep it.
+      const ctx = await deployAll();
+      await verifiedFarmerWithReceipt(ctx, ctx.farmer);
+      await ctx.vault.connect(ctx.farmer).requestLoan(1n);
+      await deliverAssessment(ctx, {
+        loanId: 1n, approved: true, principal: USDC(777),
+        aprBps: 1337, ltvBps: 20_000, score: 741, installments: 7, period: MONTH,
+      });
+
+      const loan = await ctx.vault.getLoan(1n);
+      // Guard the guard: if this ever divides evenly the test stops proving anything.
+      expect(loan.installmentAmount * 7n).to.not.equal(loan.totalOwed);
+
+      await ctx.usdc.mint(ctx.farmer.address, USDC(2000));
+      await ctx.usdc.connect(ctx.farmer).approve(await ctx.vault.getAddress(), ethers.MaxUint256);
+
+      const before = await ctx.usdc.balanceOf(ctx.farmer.address);
+      for (let i = 0; i < 7; i++) {
+        await ctx.vault.connect(ctx.farmer).repayInstallment(1n);
+        await time.increase(MONTH);
+      }
+      const after = await ctx.usdc.balanceOf(ctx.farmer.address);
+
+      const settled = await ctx.vault.getLoan(1n);
+      expect(settled.status).to.equal(3); // Repaid, not Active
+      expect(settled.repaid).to.equal(settled.totalOwed); // no dust left behind
+      expect(settled.installmentsPaid).to.equal(7); // never overruns installmentCount
+      expect(before - after).to.equal(settled.totalOwed); // borrower paid exactly what was owed
+      expect(await ctx.receipts.ownerOf(1n)).to.equal(ctx.farmer.address);
+      expect(await ctx.receipts.tokenFrozen(1n)).to.equal(false);
+      await expect(ctx.vault.connect(ctx.farmer).repayInstallment(1n)).to.be.revertedWithCustomError(
+        ctx.vault,
+        "BadStatus"
+      );
     });
 
     it("supports early full repayment", async () => {
