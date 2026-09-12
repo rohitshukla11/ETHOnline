@@ -19,3 +19,6 @@ test/.transpiled/
 
 # TypeScript incremental build cache
 tsconfig.tsbuildinfo
+
+# CRE simulator build temp
+workflows/risk-scoring/.cre_build_tmp.js

@@ -1,0 +1,4 @@
+{
+  "tier": 2,
+  "_comment": "Stub land-tenure bureau response. A real bureau would key the tier off the ?ref= survey number; this static stub returns tier 2 for every reference so the simulation is reproducible. Tier feeds scoreLandTenure() as bureauTier*20."
+}

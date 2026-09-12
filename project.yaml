@@ -1,0 +1,21 @@
+# ==========================================================================
+# CRE PROJECT SETTINGS
+# ==========================================================================
+# The Godaam workflow makes NO chain calls. main.ts uses only
+# ConfidentialHTTPClient (the bureau lookup) and the HTTP trigger - there is no
+# EVMClient and no writeReport. The DON-signed report is returned to the caller
+# and the app relays it to GodaamVault through the CRE forwarder, because CRE
+# ships no Hedera chain selector. See docs/cre-integration-notes.md.
+#
+# The `rpcs` entry below is therefore a CLI requirement, not a dependency. The
+# simulator refuses to start without at least one RPC:
+#
+#   ✗ no RPC URLs found for target "staging-settings"
+#
+# and it rejects both `rpcs: []` and omitting the key entirely. Sepolia is listed
+# purely to satisfy that check; nothing in the workflow connects to it.
+# ==========================================================================
+staging-settings:
+  rpcs:
+    - chain-name: ethereum-testnet-sepolia
+      url: https://ethereum-sepolia-rpc.publicnode.com

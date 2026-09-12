@@ -1,0 +1,10 @@
+# ==========================================================================
+# CRE WORKFLOW SETTINGS
+# ==========================================================================
+staging-settings:
+  user-workflow:
+    workflow-name: "godaam-risk-scoring"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.json"
+    # No secrets-path: the workflow calls neither getSecret nor getSecrets.
