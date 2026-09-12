@@ -1,0 +1,81 @@
+Godaam — CRE confidential workflow: live vs degraded bureau
+Captured : 2026-09-12T18:43:34Z
+cre CLI  : v1.33.0
+SDK      : @chainlink/cre-sdk 1.20.1
+
+WHAT THIS SHOWS
+===============
+The SAME fixture (good-farmer) run twice. The only difference is whether the
+land-tenure bureau - fetched from inside the enclave over confidential HTTP - is
+reachable.
+
+  A. bureau reachable    -> tier 2 -> score 893 -> bureauSource: "live"
+  B. bureau 404          -> tier 1 -> score 873 -> bureauSource: "unavailable"
+
+The point is PROVENANCE, not refusal. Read the last line of this file before
+quoting it: run B still approves. What changes is that the degradation is
+declared rather than hidden.
+
+Before this change, B produced a confident 873 with no indication the confidential
+fetch had failed. A viewer, a caller, and the onchain report were all unable to
+tell a fully-computed score from a defaulted one. That is the same defect class as
+a hand-encoded LTV: a plausible number with the wrong provenance.
+
+==============================================================================
+RUN A — bureau reachable
+  riskApiUrl: .../workflows/risk-scoring/fixtures/bureau-tier.json  (HTTP 200, tier 2)
+==============================================================================
+2026-09-13T00:12:58Z [USER LOG] [TEE] scoring loan 1 for 0x111111... (raw inputs stay in enclave)
+2026-09-13T00:12:58Z [USER LOG] [TEE] decision: approved=true score=893 ltv=22000bps principal=880000000 (6dp) bureau=live
+2026-09-13T00:12:58Z [USER LOG] [TEE] report signed by the DON for loan 1
+{
+  "approved": true,
+  "approvedPrincipal": "880000000",
+  "bureauSource": "live",
+  "ltvBps": 22000,
+  "riskScore": 893
+}
+
+==============================================================================
+RUN B — bureau unreachable (URL deliberately broken)
+  riskApiUrl: .../workflows/risk-scoring/fixtures/NO-SUCH-BUREAU.json  (HTTP 404)
+==============================================================================
+2026-09-13T00:13:02Z [USER LOG] [TEE] scoring loan 1 for 0x111111... (raw inputs stay in enclave)
+2026-09-13T00:13:03Z [USER LOG] [TEE] bureau lookup FAILED — falling back to tier 1
+2026-09-13T00:13:03Z [USER LOG] [TEE] decision: approved=true score=873 ltv=22000bps principal=880000000 (6dp) bureau=unavailable
+2026-09-13T00:13:03Z [USER LOG] [TEE] WARNING: score computed WITHOUT a live bureau tier. Land-tenure contribution defaulted. Do not treat this as a full assessment.
+2026-09-13T00:13:03Z [USER LOG] [TEE] report signed by the DON for loan 1
+{
+  "approved": true,
+  "approvedPrincipal": "880000000",
+  "bureauSource": "unavailable",
+  "ltvBps": 22000,
+  "riskScore": 873
+}
+
+=============================================================================
+THE DIFFERENCE
+=============================================================================
+                          RUN A (live)        RUN B (degraded)
+  bureau tier             2                   1  (default)
+  riskScore               893                 873
+  bureauSource            "live"              "unavailable"
+  explicit WARNING log    no                  YES
+  approved                true                true
+  ltvBps                  22000               22000
+  approvedPrincipal       880000000           880000000
+
+READ THIS BEFORE QUOTING THE ABOVE
+==================================
+Run B STILL APPROVES, at the same LTV and the same principal. 873 still clears
+the 850 threshold for the 22000bps band, so losing 20 points of land-tenure
+contribution does not change the outcome for this applicant.
+
+So the accurate claim is: the score moves, the provenance is declared, and
+nothing downstream can mistake a degraded score for a live one.
+
+The claim it does NOT support: that the system refuses to lend on incomplete
+data. It does not. Whether an unavailable bureau SHOULD block approval is a
+policy question - see docs/chainlink-feedback.md. For a marginal applicant
+sitting near a band boundary, those 20 points would flip the decision, and the
+flag is what tells you which side of that line the score came from.

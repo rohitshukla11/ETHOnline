@@ -92,10 +92,23 @@ Node-free pass.
 - Sensitive inputs inside the enclave: land record reference, yield history, repayment history
 - Load-bearing: `GodaamVault.onReport` is the **only** path that can disburse a loan, and the
   LTV band it enforces comes from the TEE
-- Evidence: `npm run cre:verify` scores both fixtures with the same module the enclave
-  runs (good farmer 893 -> approved at 220% LTV; risky farmer 271 -> declined), and
-  `npm run cre:simulate` runs the full WASM simulation once `CRE_API_KEY` is set —
-  transcript in [docs/cre-simulation-run.txt](docs/cre-simulation-run.txt)
+- Evidence: **both fixtures simulated end to end** in a TEE-requested execution (AWS
+  Nitro, us-west-2) — good farmer **893, approved, 22000bps, 880 gUSDC**; risky farmer
+  **271, declined**. Transcript in
+  [docs/cre-simulation-run.txt](docs/cre-simulation-run.txt)
+- **The confidential fetch declares its own provenance.** The land-tenure tier is
+  fetched from inside the enclave; when that endpoint is unreachable the score drops to
+  873, `bureauSource` reports `unavailable`, and the enclave logs a warning. The same
+  fixture run both ways is in
+  [docs/cre-bureau-provenance.txt](docs/cre-bureau-provenance.txt). Note it still
+  approves — what changes is that the degradation is declared, not hidden
+- **Not yet live onchain.** `CRE_TRIGGER_URL` is deliberately unset: the simulator's
+  `--listen` mode returns `Content-Length: 0`, so wiring it would turn a broken pipe
+  into a fake decline. A real trigger needs a deployed workflow and **deploy access is
+  requested and pending**. Until then `demo-lifecycle.ts` uses a hand-encoded report and
+  prints `LTV decided by: hand-encoded fallback` on screen, so the 130% LTV is never
+  passed off as a TEE output
+- Integration feedback: [docs/chainlink-feedback.md](docs/chainlink-feedback.md)
 - The private bureau lookup goes through `ConfidentialHTTPClient`, so the land record
   reference never transits the public network. See
   [docs/cre-integration-notes.md](docs/cre-integration-notes.md) for the SDK gotchas and
