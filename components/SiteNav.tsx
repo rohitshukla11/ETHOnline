@@ -30,7 +30,9 @@ export function SiteNav() {
 
   return (
     <header className="border-b border-divider">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3.5 sm:px-6">
+      {/* Full bleed: the mark sits against the left edge and the action against
+          the right, rather than inside a centred column. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-5 py-4 sm:px-6">
         <Link href="/" className="flex items-center gap-2.5">
           <Mark />
           <span className="text-[19px] font-bold tracking-[-0.02em]">Godaam</span>

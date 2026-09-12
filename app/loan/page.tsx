@@ -543,7 +543,7 @@ function LoanWorkspace() {
 
 export default function LoanPage() {
   return (
-    <div className="space-y-8">
+    <div className="mx-auto max-w-[600px] space-y-8">
       <header>
         <h1 className="text-[26px] tracking-[-0.02em]">Borrow against your grain</h1>
         <p className="mt-2 text-[15px] leading-relaxed text-muted">

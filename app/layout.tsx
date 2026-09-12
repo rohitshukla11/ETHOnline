@@ -26,10 +26,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <Providers>
           <SiteNav />
-          {/* A centred reading column, not a wide dashboard. */}
-          <main className="mx-auto w-full max-w-[600px] px-4 py-10 sm:px-6">
-            {children}
-          </main>
+          {/* The column is set per page: the landing hero is wider than the
+              app screens, which stay at a 600px reading column. */}
+          <main className="w-full px-4 py-10 sm:px-6">{children}</main>
           <SiteFooter />
         </Providers>
       </body>
