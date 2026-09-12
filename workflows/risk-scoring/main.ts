@@ -65,7 +65,7 @@ function fetchBureauTier(
 	runtime: TeeRuntime<Config>,
 	client: ConfidentialHTTPClient,
 	landRecordRef: string,
-): number {
+): { tier: number; source: 'live' | 'unavailable' } {
 	try {
 		// SDK typing gap: `sendRequest` declares its first parameter as `Runtime<unknown>`,
 		// but `TeeRuntime` is not structurally a `Runtime` — it deliberately omits
@@ -87,10 +87,14 @@ function fetchBureauTier(
 
 		const decoded = JSON.parse(new TextDecoder().decode(response.body)) as { tier?: unknown }
 		const tier = Number(decoded.tier)
-		return Number.isFinite(tier) ? tier : 1
+		if (!Number.isFinite(tier)) {
+			runtime.log('[TEE] bureau responded without a usable tier — treating as unavailable')
+			return { tier: 1, source: 'unavailable' }
+		}
+		return { tier, source: 'live' }
 	} catch (_err) {
-		runtime.log('[TEE] bureau lookup unavailable, defaulting to tier 1')
-		return 1
+		runtime.log('[TEE] bureau lookup FAILED — falling back to tier 1')
+		return { tier: 1, source: 'unavailable' }
 	}
 }
 
@@ -132,17 +136,28 @@ const assessInTee = (runtime: TeeRuntime<Config>, payload: { input: Uint8Array }
 	)
 
 	const confidentialHttp = new cre.capabilities.ConfidentialHTTPClient()
-	const bureauTier = fetchBureauTier(runtime, confidentialHttp, inputs.landRecordRef)
+	const bureau = fetchBureauTier(runtime, confidentialHttp, inputs.landRecordRef)
 
-	const assessment = assess(inputs, bureauTier, {
+	const assessment = assess(inputs, bureau.tier, {
 		minScoreToApprove: runtime.config.minScoreToApprove,
 		protocolMaxLtvBps: runtime.config.protocolMaxLtvBps,
 	})
 
+	// A 404 on the bureau used to degrade silently: the tier fell back to 1 and the
+	// workflow still emitted a confident score that cleared the approval bar. Same defect
+	// class as a hand-encoded LTV — a plausible number with the wrong provenance. The
+	// source travels with the score so a caller, and a viewer, can tell.
 	runtime.log(
 		`[TEE] decision: approved=${assessment.approved} score=${assessment.riskScore} ` +
-			`ltv=${assessment.ltvBps}bps principal=${assessment.approvedPrincipal.toString()} (6dp)`,
+			`ltv=${assessment.ltvBps}bps principal=${assessment.approvedPrincipal.toString()} (6dp) ` +
+			`bureau=${bureau.source}`,
 	)
+	if (bureau.source === 'unavailable') {
+		runtime.log(
+			'[TEE] WARNING: score computed WITHOUT a live bureau tier. ' +
+				'Land-tenure contribution defaulted. Do not treat this as a full assessment.',
+		)
+	}
 
 	const encodedReport = encodeAbiParameters(ASSESSMENT_ABI, [
 		{
@@ -161,7 +176,14 @@ const assessInTee = (runtime: TeeRuntime<Config>, payload: { input: Uint8Array }
 	// Routed out of the enclave for DON signing. Only the ABI-encoded decision travels —
 	// never the yield history, the repayment ledger or the land record reference.
 	const signedReport = runtime
-		.reportFromDon({ encodedPayload: hexToBase64(encodedReport) })
+		.reportFromDon({
+			encodedPayload: hexToBase64(encodedReport),
+			// Required. Omitting it fails at DON signing with
+			// "[3]InvalidArgument: unsupported encoder name:" - which names the field
+			// but not the accepted values. The SDK recognises 'evm' and 'solana';
+			// GodaamVault.onReport abi-decodes the payload, so 'evm' is correct.
+			encoderName: 'evm',
+		})
 		.result()
 
 	runtime.log(`[TEE] report signed by the DON for loan ${assessment.loanId}`)
@@ -176,6 +198,7 @@ const assessInTee = (runtime: TeeRuntime<Config>, payload: { input: Uint8Array }
 		installmentCount: assessment.installmentCount,
 		installmentPeriod: assessment.installmentPeriod.toString(),
 		privateInputCommitment: assessment.privateInputCommitment,
+		bureauSource: bureau.source,
 		encodedReport,
 		reportSeqNr: signedReport.seqNr().toString(),
 	}
