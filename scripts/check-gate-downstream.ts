@@ -10,13 +10,14 @@
  * holding but proves nothing about the contract.
  */
 import { ethers } from "hardhat";
+import type { Interface } from "ethers";
 import * as dotenv from "dotenv";
 dotenv.config();
 
 const need = (k: string) => { const v = process.env[k]; if (!v) throw new Error(`Missing ${k}`); return v; };
 
 /** Decode a custom error selector against a contract's ABI. */
-function decodeRevert(iface: ethers.Interface, data: string): string {
+function decodeRevert(iface: Interface, data: string): string {
   if (!data || data === "0x") return "(empty revert data)";
   try {
     const e = iface.parseError(data);
@@ -27,7 +28,7 @@ function decodeRevert(iface: ethers.Interface, data: string): string {
 }
 
 async function expectRevert(
-  label: string, iface: ethers.Interface,
+  label: string, iface: Interface,
   tx: { to: string; data: string; from: string }
 ): Promise<boolean> {
   try {

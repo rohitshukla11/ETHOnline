@@ -13,3 +13,6 @@ deployments/localhost.json
 
 # CRE workflow build output (regenerate with `npm run cre:build`)
 workflows/risk-scoring/dist/
+
+# transpiled test scratch (npm run test:worldid)
+test/.transpiled/
