@@ -24,7 +24,8 @@
     "test:worldid": "node --test test/worldid-policy.test.mjs",
     "check:gate": "cross-env TS_NODE_PROJECT=tsconfig.hardhat.json hardhat run scripts/check-gate-downstream.ts --network hederaTestnet",
     "check:screenshots": "bash scripts/check-screenshots.sh",
-    "check:worldid": "tsx scripts/check-worldid-config.ts"
+    "check:worldid": "tsx scripts/check-worldid-config.ts",
+    "deploy:nav": "cross-env TS_NODE_PROJECT=tsconfig.hardhat.json hardhat run scripts/deploy-nav-oracle.ts --network hederaTestnet"
   },
   "dependencies": {
     "@hashgraph/asset-tokenization-sdk": "^1.12.0",

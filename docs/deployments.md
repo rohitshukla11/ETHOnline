@@ -30,6 +30,7 @@
 | **WarehouseReceipt** | [`0x0F2b3D243BB0e882dE0aB9Ed0b2754e8f473EaD7`](https://hashscan.io/testnet/contract/0x0F2b3D243BB0e882dE0aB9Ed0b2754e8f473EaD7) | `0.0.10499428` | ✅ Full Match (`exact_match`) | [`0x22344450…71226c`](https://hashscan.io/testnet/transaction/0x2234445086f3161ec446ce850a495a45e9c7396a216c2a2c489531dc9771226c) |
 | **GodaamVault** | [`0x63Af372CEAa1d2C8dADF6Ea503c99edB1960d07d`](https://hashscan.io/testnet/contract/0x63Af372CEAa1d2C8dADF6Ea503c99edB1960d07d) | `0.0.10499433` | ✅ Full Match (`exact_match`) | [`0xaca3f92b…7b5828`](https://hashscan.io/testnet/transaction/0xaca3f92bb2408eea21a9019d4a1490dfbc432e23d709eaac96e39d50c97b5828) |
 | **MockCreForwarder** | [`0xaDFc7D556C20908151e8C3C56C65b6F45648C736`](https://hashscan.io/testnet/contract/0xaDFc7D556C20908151e8C3C56C65b6F45648C736) | `0.0.10499440` | ✅ Full Match (`exact_match`) | [`0x69a4acb1…5d23a5`](https://hashscan.io/testnet/transaction/0x69a4acb16e51fb80efda93390530d1b7a364f14e46a2e9848eed5fbc205d23a5) |
+| **CollateralNavOracle** | [`0x3f0669a7CAD6243AaC7cc5547B2C72557375B82D`](https://hashscan.io/testnet/contract/0x3f0669a7CAD6243AaC7cc5547B2C72557375B82D) | — | ✅ Full Match (`exact_match`) | [`0x94b85a89…2b2ea8`](https://hashscan.io/testnet/transaction/0x94b85a89a98e84809e753492a3b6e3923b86351a844c912687366c61562b2ea8) |
 
 Sourcify reports `runtimeMatch: exact_match` for all five. `creationMatch` is null
 because the creation transaction hash was not submitted alongside the sources; runtime
@@ -105,6 +106,68 @@ Adding an address to the ATS approval list is an issuer action. It is not perfor
 The link between this asset and the EVM collateral record is not retrofitted:
 `WarehouseReceipt.ReceiptData` has carried `atsTokenId` and `atsTokenAddress` since the
 first commit, and `.env` now holds the real values.
+
+## The NAV oracle and its Chainlink feed
+
+[`CollateralNavOracle`](../contracts/CollateralNavOracle.sol) —
+[`0x3f0669a7CAD6243AaC7cc5547B2C72557375B82D`](https://hashscan.io/testnet/contract/0x3f0669a7CAD6243AaC7cc5547B2C72557375B82D),
+Sourcify **Full Match**, deployed 12 September 2026.
+
+| | |
+| --- | --- |
+| **Feed** | Chainlink **HBAR/USD**, [`0x59bC155EB6c6C415fE43255aF66EcF0523c92B4a`](https://hashscan.io/testnet/contract/0x59bC155EB6c6C415fE43255aF66EcF0523c92B4a) |
+| **Staleness threshold** | `maxAnswerAge = 10800s` (3 hours), owner-adjustable |
+| **Constructor args** | `0x033588A8025F47128cf7B102412b81Ca43c2C7f0`, the feed address |
+| **Standalone** | not wired into `GodaamVault`, which is deployed and verified — a future vault consumes it through `navOf(receiptId)` |
+
+### Chainlink has no agricultural feed on Hedera
+
+The seven feeds on Hedera testnet are **HBAR, USDC, ETH, BTC, LINK, DAI and USDT against
+USD** — all crypto and stablecoin pairs. **None is agricultural.**
+
+So the crop valuation is **not** oracle-derived, and the contract enforces that
+structurally rather than by comment: `navOf` returns `cropSource` and `referenceSource`
+as separate fields, `cropSource` is hardcoded to `Appraisal` and can never be
+`ChainlinkFeed`, and a test asserts exactly that. The feed supplies the **settlement
+currency** reference only — a real dependency, since loans are denominated in a
+stablecoin, but not a grain price.
+
+### Both paths, called against the live contract
+
+**Fresh feed**, `maxAnswerAge = 10800s`:
+
+```
+navUsd6              11466000000  (= $11466)
+appraisalUsdPerTonne 273000000  (= $273/tonne)
+quantityKg           42000
+referenceAnswer      7437857  (= 0.07437857)
+referenceDecimals    8
+referenceUpdatedAt   1789241620  (35 min ago)
+cropSource           Appraisal
+referenceSource      ChainlinkFeed
+```
+
+**Same feed, `maxAnswerAge` lowered to 60s** so the live answer reads stale:
+
+```
+navUsd6              11466000000  (= $11466)
+referenceAnswer      0
+referenceDecimals    0
+referenceUpdatedAt   0
+cropSource           Appraisal
+referenceSource      None
+```
+
+The second is the one that matters. It **zeroes** the answer, decimals and timestamp
+rather than relabelling an old price — a caller cannot read a stale figure at all. The
+NAV itself is unchanged, because the appraisal does not depend on the feed.
+
+Reproduce with `npm run deploy:nav`, or call the deployed contract directly:
+
+```bash
+cast call 0x3f0669a7CAD6243AaC7cc5547B2C72557375B82D \
+  "referencePrice()(int256,uint8,uint256)" --rpc-url https://testnet.hashio.io/api
+```
 
 ## A note on the contract comments
 

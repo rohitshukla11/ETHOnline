@@ -160,14 +160,21 @@ forfeits five `exact_match` verifications.
 
 ### Extra credit
 
-- **Oracle integration for NAV** — [`contracts/CollateralNavOracle.sol`](contracts/CollateralNavOracle.sol)
-  reads a Chainlink price feed on Hedera testnet with a staleness threshold, and reports
-  the provenance of every component. **Chainlink publishes no agricultural feed on
-  Hedera** — the seven available are HBAR, USDC, ETH, BTC, LINK, DAI and USDT against USD
-  — so the crop appraisal is operator-administered and the feed supplies the settlement
-  currency reference only. `navOf` returns `cropSource` and `referenceSource` separately
-  so the two can never be confused, and a stale answer degrades to `None` rather than
-  being reported as current. Eight tests cover the degradation paths
+- **Oracle integration for NAV** — [`CollateralNavOracle`](contracts/CollateralNavOracle.sol),
+  live at [`0x3f0669a7…75B82D`](https://hashscan.io/testnet/contract/0x3f0669a7CAD6243AaC7cc5547B2C72557375B82D)
+  on Hedera testnet, Sourcify **Full Match**, reading Chainlink HBAR/USD with a 3-hour
+  staleness threshold. Call it yourself — details and both live call outputs in
+  [docs/deployments.md](docs/deployments.md)
+
+  **A design decision worth stating outright: the crop price is never oracle-sourced, and
+  the contract makes that structural.** Chainlink publishes seven feeds on Hedera testnet
+  — HBAR, USDC, ETH, BTC, LINK, DAI, USDT against USD — and none is agricultural. Rather
+  than present HBAR/USD as a proxy for wheat, `navOf` returns `cropSource` and
+  `referenceSource` as **separate fields**; `cropSource` is hardcoded to `Appraisal` and
+  cannot be `ChainlinkFeed`, and a test asserts that so the honesty survives a future
+  edit rather than living in a comment someone could delete. A stale feed zeroes the
+  answer and reports `None` instead of relabelling an old price — proven on the deployed
+  contract, not just against a mock.
 - **Upstream contribution** — two reproducible first-install bugs in
   `hashgraph/asset-tokenization-studio`, written up in
   [docs/upstream-ats-issue.md](docs/upstream-ats-issue.md): an `HH19` error that masks an
