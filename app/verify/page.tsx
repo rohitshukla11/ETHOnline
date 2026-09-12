@@ -61,7 +61,17 @@ export default function VerifyPage() {
               app_id={(process.env.NEXT_PUBLIC_WORLD_APP_ID ?? "app_staging_") as `app_${string}`}
               action={process.env.NEXT_PUBLIC_WORLD_ACTION ?? "godaam-farmer-verify"}
               signal={address}
-              verification_level={VerificationLevel.Orb}
+              // Minimum assurance level, not an exact match. idkit-core expands
+              // this to the credential types World App will accept:
+              //   Orb            -> ["orb"]
+              //   Document       -> ["document", "orb"]
+              //   SecureDocument -> ["secure_document", "orb"]
+              // Document therefore admits an NFC passport / national ID holder AND
+              // an orb-verified user, matching ACCEPTED_VERIFICATION_LEVELS exactly.
+              // Requesting Orb here would have World App refuse a Document holder
+              // before a proof is ever generated, so the server allowlist would
+              // never get a say.
+              verification_level={VerificationLevel.Document}
               handleVerify={onSuccess}
               onSuccess={() => {}}
             >

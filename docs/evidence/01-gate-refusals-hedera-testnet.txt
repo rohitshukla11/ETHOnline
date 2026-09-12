@@ -1,20 +1,21 @@
 Godaam — World ID gate refusals on Hedera testnet (chain 296)
-Captured: 2026-09-12T12:25:46Z
-Command: GATE_TEST_ADDRESS=0x27a89B82... hardhat run scripts/check-gate-downstream.ts --network hederaTestnet
+Captured: 2026-09-12T15:43:11Z
+Address is freshly generated and has never touched this deployment.
 Read via raw eth_call against the deployed, Sourcify-verified contracts.
+Reproduce: GATE_TEST_ADDRESS=<addr> npm run check:gate
 
-unverified address  0x27a89B8262b6A51167488edC860E39fbC0111B9B
+unverified address  0x7B5e01253D86Dd64e275db2D4F5861FE7b33C75D
 isVerified()        false
 kycGranted()        false
 
-  1. grantKyc                      REVERTED  WorldIdVerificationRequired(0x27a89B8262b6A51167488edC860E39fbC0111B9B)
-  2. issue receipt                 REVERTED  WorldIdVerificationRequired(0x27a89B8262b6A51167488edC860E39fbC0111B9B)
+  1. grantKyc                      REVERTED  WorldIdVerificationRequired(0x7B5e01253D86Dd64e275db2D4F5861FE7b33C75D)
+  2. issue receipt                 REVERTED  WorldIdVerificationRequired(0x7B5e01253D86Dd64e275db2D4F5861FE7b33C75D)
 
    (requestLoan sender: 0xff67f768bbfb28793920383cedbb237cd8136eb6, isVerified=false)
   3. requestLoan                   REVERTED  NotVerified(0xff67F768bbFb28793920383cEDbb237cd8136eb6)
 
    (receipt #1 holder: 0x033588A8025F47128cf7B102412b81Ca43c2C7f0 -> transfer to the unverified address)
-  4. transfer receipt #1           REVERTED  KycRequired(0x27a89B8262b6A51167488edC860E39fbC0111B9B)
+  4. transfer receipt #1           REVERTED  KycRequired(0x7B5e01253D86Dd64e275db2D4F5861FE7b33C75D)
 
 control - already-verified address 0x033588A8025F47128cf7B102412b81Ca43c2C7f0
   isVerified()  true

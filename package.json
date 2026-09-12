@@ -22,7 +22,8 @@
     "check:balances": "cross-env TS_NODE_PROJECT=tsconfig.hardhat.json hardhat run scripts/check-balances.ts --network hederaTestnet",
     "check:roles": "cross-env TS_NODE_PROJECT=tsconfig.hardhat.json hardhat run scripts/check-roles.ts --network hederaTestnet",
     "test:worldid": "node --test test/worldid-policy.test.mjs",
-    "check:gate": "cross-env TS_NODE_PROJECT=tsconfig.hardhat.json hardhat run scripts/check-gate-downstream.ts --network hederaTestnet"
+    "check:gate": "cross-env TS_NODE_PROJECT=tsconfig.hardhat.json hardhat run scripts/check-gate-downstream.ts --network hederaTestnet",
+    "check:screenshots": "bash scripts/check-screenshots.sh"
   },
   "dependencies": {
     "@hashgraph/asset-tokenization-sdk": "^1.12.0",

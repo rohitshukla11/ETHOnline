@@ -4,8 +4,18 @@ Submitted for the World track, ETHOnline 2026.
 
 ## What we built
 
-Godaam gates collateral issuance on **World ID Orb verification**. A warehouse receipt
+Godaam gates collateral issuance on **World ID proof of personhood**. A warehouse receipt
 cannot be held without it, and a nullifier can bind to exactly one address.
+
+The accepted credential set is `{orb, document}`, declared on one line as
+`ACCEPTED_VERIFICATION_LEVELS` in `lib/worldid-policy.ts`. **That is a policy decision,
+not an architectural one**, and worth stating plainly: the contracts are
+credential-agnostic — `WorldIdRegistry` records a nullifier and `WarehouseReceipt` checks
+it, and neither ever inspects which credential produced it. Production lending against
+real collateral should require `orb` alone. This demo also accepts `document` (NFC
+passport or national ID, medium assurance) because no orb was reachable inside the
+submission window. `device` is rejected outright: a phone is not a person, and one human
+can hold many, which would defeat the Sybil guarantee the whole design rests on.
 
 The nullifier hash is written to `WorldIdRegistry` on Hedera testnet and is a hard
 precondition for `WarehouseReceipt.grantKyc`, which is itself a precondition for minting or
@@ -166,7 +176,43 @@ export `hashToField` from the package root so it does not have to be reimplement
 
 ---
 
-## Finding 4 — blocklist vs allowlist on credential checks
+## Finding 4 — the verification-level to credential mapping is not monotonic
+
+Requesting a *lower* assurance level does not accept a *higher* one, which is the
+opposite of what "minimum level" implies.
+
+**Evidence.** `verification_level_to_credential_types` in `idkit-core@1.5.0`:
+
+```js
+case "device":          return ["orb", "device"]
+case "document":        return ["document", "orb"]
+case "secure_document": return ["secure_document", "orb"]
+case "orb":             return ["orb"]
+```
+
+`document` expands to `{document, orb}` — it does **not** include `secure_document`,
+even though secure_document is strictly higher assurance than document. So a user
+holding only World's stronger document credential is refused by a request for the
+weaker one.
+
+**Why it bites.** The parameter is named `verification_level` and reads as a floor, so
+the natural assumption is that requesting `document` admits anything at least as strong.
+It doesn't. And because the widget takes a single level, there is no way to request
+"document or secure_document or orb" in one call: you must pick one expansion and accept
+the set it happens to produce.
+
+We hit this deciding what to request. We wanted "orb, or a document credential of either
+tier". That is not expressible. We chose `Document`, giving `{document, orb}`, and
+matched `ACCEPTED_VERIFICATION_LEVELS` to exactly those two values so the widget and the
+server allowlist cannot disagree — a test asserts the set.
+
+**Suggested fix:** either make the expansions monotonic, so `document` admits
+`secure_document`, or accept an explicit list of credential types and rename the
+parameter, since it is a set selector rather than a level.
+
+---
+
+## Finding 5 — blocklist vs allowlist on credential checks
 
 Our own bug, but the shape is general.
 
@@ -227,14 +273,14 @@ Sourcify-verified contracts. Raw `eth_call` from an unverified address — no ga
 funded account, no transactions:
 
 ```
-unverified address  0x27a89B8262b6A51167488edC860E39fbC0111B9B
+unverified address  0x7B5e01253D86Dd64e275db2D4F5861FE7b33C75D
 isVerified()        false
 kycGranted()        false
 
-  1. grantKyc              REVERTED  WorldIdVerificationRequired(0x27a89B82...0111B9B)
-  2. issue receipt         REVERTED  WorldIdVerificationRequired(0x27a89B82...0111B9B)
+  1. grantKyc              REVERTED  WorldIdVerificationRequired(0x7B5e0125...7b33C75D)
+  2. issue receipt         REVERTED  WorldIdVerificationRequired(0x7B5e0125...7b33C75D)
   3. requestLoan           REVERTED  NotVerified(0xff67F768bbFb28793920383cEDbb237cd8136eb6)
-  4. transfer receipt #1   REVERTED  KycRequired(0x27a89B82...0111B9B)
+  4. transfer receipt #1   REVERTED  KycRequired(0x7B5e0125...7b33C75D)
 
 control - already-verified address 0x033588A8025F47128cf7B102412b81Ca43c2C7f0
   isVerified()  true

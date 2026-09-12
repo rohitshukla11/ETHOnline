@@ -104,9 +104,16 @@ Node-free pass.
 - Gate, not a checkmark: `WarehouseReceipt.grantKyc` reverts with
   `WorldIdVerificationRequired` unless the nullifier is onchain, so no verification means no
   collateral, which means no loan
-- The credential is **World ID Orb** — World's strongest proof of personhood. Selfie Check
-  was the original design; it was deprioritized once the SDK showed that every IDKit preset
-  requires World ID 4.0 Relying Party registration regardless of the proof version it
+- **The accepted credential is a policy decision, not an architectural one.** The contracts
+  are credential-agnostic: they record and check a nullifier and never inspect which
+  credential produced it. The accepted set is one line —
+  `ACCEPTED_VERIFICATION_LEVELS` in [lib/worldid-policy.ts](lib/worldid-policy.ts) — and it
+  holds `{orb, document}`. **Production lending against real collateral should require
+  `orb` alone.** This demo also accepts `document` (NFC passport or national ID, medium
+  assurance) because no orb was reachable inside the submission window. `device` is
+  rejected: a phone is not a person, and one human can hold many
+- Selfie Check was the original design; it was dropped once the SDK showed that every IDKit
+  preset requires World ID 4.0 Relying Party registration regardless of the proof version it
   returns. The reasoning is written up in [docs/world-feedback.md](docs/world-feedback.md)
 - The credential check is an allowlist, not a blocklist: `lib/worldid-policy.ts` asserts the
   level equals `orb` and rejects everything else, so a future credential cannot satisfy the

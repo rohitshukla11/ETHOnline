@@ -1,17 +1,16 @@
 Godaam — /api/worldid/verify live responses
-Captured: 2026-09-12T12:26:08Z
+Captured: 2026-09-12T15:43:11Z
 App: app_01bad004474e95ad1933f6be72139945   Action: human-verification
-Endpoint reached: https://developer.world.org/api/v4/verify/{app_id}
+Policy: ACCEPTED_VERIFICATION_LEVELS = {orb, document}
 
---- A. structurally valid request, fabricated proof ---
-    World reaches proof verification and rejects the proof itself:
+--- A. orb, fabricated proof -> reaches World's proof verification ---
     {"error":"This attribute is improperly formatted. Expected either an ABI-encoded uint256[8] string or a JSON-encoded array string in the correct format.","code":"invalid_format"}
         [HTTP 403]
 
---- B. disallowed credential, refused locally before any network call ---
-    {"error":"World ID proof has verification level \"document\", which Godaam does not accept. Accepted: orb.","code":"insufficient_level"}
+--- B. document, fabricated proof -> now ACCEPTED by policy, reaches World ---
+    {"error":"This attribute is improperly formatted. Expected either an ABI-encoded uint256[8] string or a JSON-encoded array string in the correct format.","code":"invalid_format"}
         [HTTP 403]
 
---- C. control: which endpoint answers what (why v4, not v2) ---
-    developer.worldcoin.org/api/v2/verify          {"code":"invalid_action","detail":"Action not found.","attribute":"action","app_id":"app_01bad004474e95ad1933f6be72139945"} [HTTP 
-    developer.world.org/api/v4/verify              {"success":false,"code":"all_verifications_failed","detail":"All proof verifications failed.","results":[{"identifier":"orb","succ
+--- C. device -> refused locally, never leaves the server ---
+    {"error":"World ID proof has verification level \"device\", which Godaam does not accept. Accepted: orb, document.","code":"insufficient_level"}
+        [HTTP 403]

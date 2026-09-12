@@ -16,13 +16,27 @@
 /**
  * Credentials that satisfy Godaam's proof-of-personhood gate.
  *
- * `orb` is what `app/verify/page.tsx` requests, and Orb is World's strongest
- * proof-of-personhood credential. Selfie Check was the original design but needs
- * World ID 4.0 RP registration (see docs/world-feedback.md); if that is taken on
- * later, add its level here in the same change that switches the frontend, so the
- * request and the assertion can never drift apart silently.
+ * THIS IS THE POLICY LINE. One place, deliberately, because it is a decision rather
+ * than an implementation detail.
+ *
+ * `orb`      - World's strongest proof of personhood.
+ * `document` - NFC passport or national ID, medium assurance.
+ *
+ * Why both: the contracts are credential-agnostic. They record and check a nullifier
+ * and never inspect which credential produced it, so the accepted level is policy,
+ * not architecture. Production lending against real collateral should require `orb`
+ * alone; this demo also accepts `document` because no orb was reachable inside the
+ * submission window.
+ *
+ * This set is kept in step with what the frontend requests. `app/verify/page.tsx`
+ * asks for `VerificationLevel.Document`, which idkit-core expands to exactly
+ * ["document", "orb"] - the same two values. Changing one without the other lets a
+ * credential through the widget that the server then refuses, or vice versa.
+ *
+ * Not `device`: device-level is a phone attestation, not a person, and one human can
+ * hold many devices. That defeats the entire Sybil guarantee.
  */
-export const ACCEPTED_VERIFICATION_LEVELS = ["orb"] as const;
+export const ACCEPTED_VERIFICATION_LEVELS = ["orb", "document"] as const;
 
 export type VerificationLevelCheck =
   | { ok: true; level: string }

@@ -52,10 +52,22 @@ test("rejects device-level proofs", () => {
   assert.equal(r.code, "insufficient_level");
 });
 
-test("rejects document proofs - the blocklist let these through", () => {
-  for (const level of ["document", "secure_document"]) {
-    assert.equal(policy.checkVerificationLevel(level).ok, false, `${level} must not pass`);
-  }
+test("accepts document - NFC passport / national ID, medium assurance", () => {
+  const r = policy.checkVerificationLevel("document");
+  assert.equal(r.ok, true);
+  assert.equal(r.level, "document");
+});
+
+test("rejects secure_document - not in the accepted set", () => {
+  // Deliberate: the frontend requests VerificationLevel.Document, which idkit
+  // expands to exactly ["document", "orb"]. secure_document is not in that set,
+  // so accepting it server-side would be wider than what the widget requests.
+  assert.equal(policy.checkVerificationLevel("secure_document").ok, false);
+});
+
+test("rejects device - a phone is not a person", () => {
+  // One human can hold many devices, which defeats the Sybil guarantee entirely.
+  assert.equal(policy.checkVerificationLevel("device").ok, false);
 });
 
 test("fails closed on an unknown future credential", () => {
@@ -65,9 +77,16 @@ test("fails closed on an unknown future credential", () => {
 });
 
 test("rejection names the level that was received", () => {
-  const r = policy.checkVerificationLevel("document");
-  assert.match(r.detail, /"document"/);
+  const r = policy.checkVerificationLevel("device");
+  assert.match(r.detail, /"device"/);
   assert.match(r.detail, /orb/);
+  assert.match(r.detail, /document/);
+});
+
+test("accepted set is exactly {orb, document}", () => {
+  // Guards the policy line itself. If this set changes, it should be a deliberate
+  // edit here and in app/verify/page.tsx together, not a drift.
+  assert.deepEqual([...policy.ACCEPTED_VERIFICATION_LEVELS].sort(), ["document", "orb"]);
 });
 
 test("rejects missing, empty and non-string levels", () => {
@@ -83,6 +102,7 @@ test("trims surrounding whitespace before comparing", () => {
 test("allowlist is explicit and non-empty", () => {
   assert.ok(policy.ACCEPTED_VERIFICATION_LEVELS.length > 0);
   assert.ok(policy.ACCEPTED_VERIFICATION_LEVELS.includes("orb"));
+  assert.ok(policy.ACCEPTED_VERIFICATION_LEVELS.includes("document"));
 });
 
 test("honours an overridden allowlist", () => {
