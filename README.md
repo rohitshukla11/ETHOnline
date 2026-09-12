@@ -29,6 +29,19 @@ npm run deploy:hedera
 npm run dev
 ```
 
+The Chainlink Confidential Workflow lives in `workflows/risk-scoring/` and is built with
+Bun, not npm — it compiles to WASM through Javy, which is not a Node runtime:
+
+```bash
+curl -fsSL https://bun.sh/install | bash              # Bun >= 1.2.21
+# cre CLI: https://docs.chain.link/cre/getting-started/cli-installation
+bun --cwd workflows/risk-scoring install
+
+npm run cre:verify     # scores both fixtures, no CRE account needed
+npm run cre:build      # compiles main.ts -> dist/workflow.wasm
+npm run cre:simulate   # full simulation; needs CRE_API_KEY or `cre login`
+```
+
 ## Assumptions baked in (change these if you disagree)
 
 - **Stablecoin**: `MockUSDC.sol`, symbol `gUSDC`, **6 decimals**, open `faucet()` (5,000/day)
@@ -74,7 +87,14 @@ Node-free pass.
 - Sensitive inputs inside the enclave: land record reference, yield history, repayment history
 - Load-bearing: `GodaamVault.onReport` is the **only** path that can disburse a loan, and the
   LTV band it enforces comes from the TEE
-- Evidence: `npm run cre:simulate` with the fixtures in `workflows/risk-scoring/fixtures/`
+- Evidence: `npm run cre:verify` scores both fixtures with the same module the enclave
+  runs (good farmer 893 -> approved at 220% LTV; risky farmer 271 -> declined), and
+  `npm run cre:simulate` runs the full WASM simulation once `CRE_API_KEY` is set —
+  transcript in [docs/cre-simulation-run.txt](docs/cre-simulation-run.txt)
+- The private bureau lookup goes through `ConfidentialHTTPClient`, so the land record
+  reference never transits the public network. See
+  [docs/cre-integration-notes.md](docs/cre-integration-notes.md) for the SDK gotchas and
+  the one unresolved architectural constraint (CRE has no Hedera chain selector)
 
 ### World — Selfie Check
 - Gate, not a checkmark: `WarehouseReceipt.grantKyc` reverts with
@@ -88,6 +108,6 @@ Node-free pass.
 | Clip | Command |
 | --- | --- |
 | World ID gating | `npm run dev` → /verify, then try /tokenize while unverified |
-| Hedera lifecycle | `npm run demo:lifecycle` |
-| CRE confidential workflow | `npm run cre:simulate` |
+| Hedera lifecycle | `CRE_LIVE=true npm run demo:lifecycle` (falls back to a hand-encoded report, and says so, when `CRE_LIVE` is unset) |
+| CRE confidential workflow | `npm run cre:verify`, then `npm run cre:simulate` |
 | Default → liquidation | `npx hardhat run scripts/demo-liquidation.ts --network hederaTestnet` |

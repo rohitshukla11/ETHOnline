@@ -53,6 +53,107 @@ function encodeAssessment(a: {
   );
 }
 
+type AssessmentPayload = {
+  loanId: bigint;
+  approved: boolean;
+  approvedPrincipal: bigint;
+  aprBps: number;
+  ltvBps: number;
+  riskScore: number;
+  installmentCount: number;
+  installmentPeriod: bigint;
+  privateInputCommitment: string;
+};
+
+/**
+ * Ask the CRE Confidential Workflow to underwrite this loan.
+ *
+ * Set CRE_TRIGGER_URL to the workflow's HTTP trigger (printed by `npm run cre:simulate`,
+ * or the deployed trigger URL) and CRE_LIVE=true. With CRE_LIVE=false, or no trigger URL,
+ * this returns the pre-CRE hand-encoded report and says so, so nobody mistakes a literal
+ * for an enclave decision.
+ */
+async function fetchAssessment(
+  loanId: bigint,
+  collateralValue: bigint
+): Promise<{ payload: AssessmentPayload; source: string; commitment?: string }> {
+  const triggerUrl = process.env.CRE_TRIGGER_URL;
+  const live = process.env.CRE_LIVE === "true";
+
+  const fallback: AssessmentPayload = {
+    loanId,
+    approved: true,
+    approvedPrincipal: USDC(520), // 130% LTV - above bare collateral
+    aprBps: 1500,
+    ltvBps: 13_000,
+    riskScore: 612,
+    installmentCount: 6,
+    installmentPeriod: 30n * 24n * 3600n,
+    privateInputCommitment: ethers.keccak256(ethers.toUtf8Bytes("tee-input-commitment")),
+  };
+
+  if (!live || !triggerUrl) {
+    return {
+      payload: fallback,
+      source: "hand-encoded fallback (set CRE_LIVE=true and CRE_TRIGGER_URL for the TEE)",
+    };
+  }
+
+  // These three fields are the confidential inputs. They go to the enclave and are never
+  // logged here, never persisted, and never written onchain.
+  const privateInputs = {
+    loanId: Number(loanId),
+    borrower: (await ethers.getSigners())[1]?.address ?? (await ethers.getSigners())[0].address,
+    collateralValue: collateralValue.toString(),
+    landRecordRef: process.env.DEMO_LAND_RECORD_REF ?? "MH-PUN-0421/2A",
+    pastYieldsKgPerHa: [3120, 2980, 3240, 3050, 3190],
+    repaymentHistory: [
+      { lender: "PACS-Baramati", amount: 120000, daysLate: 0 },
+      { lender: "SBI-KCC", amount: 240000, daysLate: 12 },
+      { lender: "NABARD-SHG", amount: 80000, daysLate: 0 },
+    ],
+  };
+
+  const res = await fetch(triggerUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(process.env.CRE_TRIGGER_API_KEY
+        ? { Authorization: `Bearer ${process.env.CRE_TRIGGER_API_KEY}` }
+        : {}),
+    },
+    body: JSON.stringify(privateInputs),
+  });
+  if (!res.ok) throw new Error(`CRE workflow returned ${res.status}: ${await res.text()}`);
+
+  const out = (await res.json()) as {
+    approved: boolean;
+    approvedPrincipal: string;
+    aprBps: number;
+    ltvBps: number;
+    riskScore: number;
+    installmentCount: number;
+    installmentPeriod: string;
+    privateInputCommitment: string;
+  };
+
+  return {
+    payload: {
+      loanId,
+      approved: out.approved,
+      approvedPrincipal: BigInt(out.approvedPrincipal),
+      aprBps: out.aprBps,
+      ltvBps: out.ltvBps,
+      riskScore: out.riskScore,
+      installmentCount: out.installmentCount,
+      installmentPeriod: BigInt(out.installmentPeriod),
+      privateInputCommitment: out.privateInputCommitment,
+    },
+    source: "Chainlink CRE Confidential Workflow (Nitro TEE)",
+    commitment: out.privateInputCommitment,
+  };
+}
+
 async function main() {
   const d = loadDeployment();
   const [operator, farmer] = await ethers.getSigners();
@@ -110,19 +211,18 @@ async function main() {
   console.log(`Loan #${loanId} requested; receipt frozen = ${await receipts.tokenFrozen(receiptId)}`);
 
   console.log("\n=== 4. CRE CONFIDENTIAL WORKFLOW REPORT ===");
-  // In production this payload is produced inside handlerInTee and signed by the DON.
-  // Here the same ABI shape is delivered through the forwarder for an onchain demo.
-  const report = encodeAssessment({
-    loanId,
-    approved: true,
-    approvedPrincipal: USDC(520), // 130% LTV - above bare collateral, enabled by the TEE score
-    aprBps: 1500,
-    ltvBps: 13_000,
-    riskScore: 612,
-    installmentCount: 6,
-    installmentPeriod: 30n * 24n * 3600n,
-    privateInputCommitment: ethers.keccak256(ethers.toUtf8Bytes("tee-input-commitment")),
-  });
+  // Default path: the farmer's private risk inputs go to the deployed Confidential
+  // Workflow, which scores them inside a Nitro enclave and returns the ABI-encoded
+  // assessment. Nothing here decides the loan size - the enclave does.
+  //
+  // CRE_LIVE=false falls back to a hand-encoded report so the demo still runs if the
+  // network is down. Any LTV printed under the fallback is a literal, not a TEE decision.
+  const assessment = await fetchAssessment(loanId, USDC(400));
+  const report = encodeAssessment(assessment.payload);
+  console.log(
+    `source: ${assessment.source}` +
+      (assessment.commitment ? `  commitment=${assessment.commitment}` : "")
+  );
   const metadata = await forwarder.buildMetadata(
     ethers.id("godaam-risk-scoring"),
     ethers.hexlify(ethers.toUtf8Bytes("godaam-ris")),
@@ -132,7 +232,10 @@ async function main() {
   const before = await usdc.balanceOf(borrower.address);
   await (await forwarder.forward(d.GodaamVault, metadata, report)).wait();
   const after = await usdc.balanceOf(borrower.address);
-  console.log(`Disbursed ${fmt(after - before)} against ${fmt(USDC(400))} of collateral`);
+  console.log(
+    `Disbursed ${fmt(after - before)} against ${fmt(USDC(400))} of collateral ` +
+      `(LTV decided by: ${assessment.source})`
+  );
 
   const loan = await vault.getLoan(loanId);
   console.log(

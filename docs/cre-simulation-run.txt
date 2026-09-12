@@ -1,0 +1,77 @@
+Godaam — Chainlink CRE Confidential Workflow
+Evidence capture: 2026-09-12T09:45:32Z
+Host: Darwin 24.5.0 arm64
+bun 1.4.2 | cre v1.33.0 | @chainlink/cre-sdk 1.20.1
+
+==============================================================================
+STATUS: PARTIAL
+  Typecheck clean ................................... YES
+  Compiles to WASM via Javy ......................... YES
+  Scoring verified against both fixtures ............ YES
+  Full 'cre workflow simulate' run .................. BLOCKED (see bottom)
+==============================================================================
+
+$ npm run cre:typecheck
+> godaam@0.1.0 cre:typecheck
+> bun run --cwd workflows/risk-scoring typecheck
+$ tsc --noEmit
+(no diagnostics = clean)
+
+$ npm run cre:build
+> godaam@0.1.0 cre:build
+> bun run --cwd workflows/risk-scoring build
+$ cre-compile main.ts dist/workflow.wasm
+🚀 Compiling workflow
+📁 Input:   /Users/rohitshukla/ETHOnline/workflows/risk-scoring/main.ts
+🧪 JS out:  /Users/rohitshukla/ETHOnline/workflows/risk-scoring/dist/workflow.js
+🎯 WASM out:/Users/rohitshukla/ETHOnline/workflows/risk-scoring/dist/workflow.wasm
+📦 Step 1: Compiling JS...
+📁 Using input file: /Users/rohitshukla/ETHOnline/workflows/risk-scoring/main.ts
+Bundled 1 module in 9ms
+  workflow.js  0.79 MB  (entry point)
+✅ Built: /Users/rohitshukla/ETHOnline/workflows/risk-scoring/dist/workflow.js
+🔨 Step 2: Compiling to WASM...
+🔨 Compiling to WASM
+📁 Input:  /Users/rohitshukla/ETHOnline/workflows/risk-scoring/dist/workflow.js
+🎯 Output: /Users/rohitshukla/ETHOnline/workflows/risk-scoring/dist/workflow.wasm
+[cre-sdk-javy-plugin] Detected platform: darwin, arch: arm64
+[cre-sdk-javy-plugin] Using cached binary: /Users/rohitshukla/.cache/javy/v8.1.0/darwin-arm64/javy
+✅ Compiled: /Users/rohitshukla/ETHOnline/workflows/risk-scoring/dist/workflow.wasm
+✅ Workflow built: /Users/rohitshukla/ETHOnline/workflows/risk-scoring/dist/workflow.wasm
+
+$ npm run cre:verify
+> godaam@0.1.0 cre:verify
+> bun run --cwd workflows/risk-scoring verify
+$ bun run verify-fixtures.ts
+PASS  good-farmer
+      collateral 400 gUSDC
+      score=893/1000  approved=true  ltv=22000bps  apr=900bps  principal=880 gUSDC
+      commitment 0x0ed3c9841c23bb73dcb0f5ee67476d7f7f3a47d606b2a8651a23172e26571ceb
+PASS  risky-farmer
+      collateral 400 gUSDC
+      score=271/1000  approved=false  ltv=0bps  apr=0bps  principal=0 gUSDC
+      commitment 0xd48032f794fb7f3f6e9b8eacc7089e6dbb8786aabbc390c066bd40cf5d9bbb2b
+All fixture expectations met.
+
+==============================================================================
+BLOCKED: 'cre workflow simulate' requires a CRE account credential
+==============================================================================
+
+$ npm run cre:simulate
+> godaam@0.1.0 cre:simulate
+> bun run --cwd workflows/risk-scoring simulate
+$ cre workflow simulate . --http-payload fixtures/good-farmer.json --config config.json
+Initializing...
+! You are not logged in
+✗ Authentication required: not logged in and no CRE_API_KEY set
+  → Run 'cre login' interactively, or
+  → Set CRE_API_KEY environment variable for non-interactive use
+✗ authentication required: no credentials found: you are not logged in, run cre login and try again
+error: script "simulate" exited with code 1
+
+To unblock: create an API key at https://app.chain.link (Account Settings),
+then either
+    export CRE_API_KEY=<key>      # non-interactive, also honoured via .env
+or
+    cre login                     # opens a browser
+and re-run 'npm run cre:simulate'. Append the transcript below this line.

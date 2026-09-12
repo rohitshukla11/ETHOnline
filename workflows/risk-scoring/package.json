@@ -4,12 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "simulate": "cre workflow simulate .",
-    "deploy": "cre workflow deploy .",
+    "build": "cre-compile main.ts dist/workflow.wasm",
+    "verify": "bun run verify-fixtures.ts",
+    "simulate": "cre workflow simulate . --http-payload fixtures/good-farmer.json --config config.json",
+    "simulate:risky": "cre workflow simulate . --http-payload fixtures/risky-farmer.json --config config.json",
+    "deploy": "cre workflow deploy . --config config.json",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@chainlink/cre-sdk": "^0.5.0",
+    "@chainlink/cre-sdk": "1.20.1",
+    "viem": "^2.56.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {

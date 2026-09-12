@@ -10,3 +10,6 @@ typechain-types/
 deployments/localhost.json
 *.log
 .DS_Store
+
+# CRE workflow build output (regenerate with `npm run cre:build`)
+workflows/risk-scoring/dist/

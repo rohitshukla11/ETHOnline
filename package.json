@@ -13,7 +13,10 @@
     "deploy:hedera": "hardhat run scripts/deploy.ts --network hederaTestnet",
     "demo:lifecycle": "hardhat run scripts/demo-lifecycle.ts --network hederaTestnet",
     "ats:issue": "tsx scripts/ats-issue-receipt.ts",
-    "cre:simulate": "npm --prefix workflows/risk-scoring run simulate"
+    "cre:simulate": "bun run --cwd workflows/risk-scoring simulate",
+    "cre:build": "bun run --cwd workflows/risk-scoring build",
+    "cre:verify": "bun run --cwd workflows/risk-scoring verify",
+    "cre:typecheck": "bun run --cwd workflows/risk-scoring typecheck"
   },
   "dependencies": {
     "@hashgraph/asset-tokenization-sdk": "^1.12.0",
