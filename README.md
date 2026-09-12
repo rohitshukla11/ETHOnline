@@ -8,6 +8,29 @@ nullifier makes sure one identity gets one claim.
 
 ETHGlobal ETHOnline 2026 — Hedera / Chainlink / World tracks.
 
+## Deployment
+
+**Live app:** _not yet deployed — see `docs/vercel-deploy.md` for the exact steps and the
+environment-variable classification._
+
+Everything below runs against **Hedera testnet (chain 296)**. Contract addresses and
+Sourcify verification status are in [`docs/deployments.md`](docs/deployments.md).
+
+### Known limitation: the attestor is a hot wallet
+
+The deployed app signs World ID attestations and warehouse-receipt issuance with
+`WORLD_ATTESTOR_PRIVATE_KEY`, which lives as a server-side environment variable on the
+hosting platform. That is a hot wallet: anyone with access to the deployment environment
+can sign as the attestor.
+
+This is bounded rather than safe. The key holds testnet HBAR only, it is refillable from
+the public faucet, and it controls no mainnet value — but it is a real key in a
+third-party environment, and a production deployment would move attestation behind a KMS
+or a threshold signer rather than an environment variable.
+
+`DEPLOYER_PRIVATE_KEY` is **not** set in the hosting environment. It is used only by the
+local deploy scripts.
+
 ## Layout
 
 ```
