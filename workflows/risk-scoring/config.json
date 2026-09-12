@@ -4,7 +4,7 @@
   "vaultUrl": "http://localhost:8080",
   "chainSelector": "hedera-testnet",
   "godaamVaultAddress": "0x0000000000000000000000000000000000000000",
-  "riskApiUrl": "https://raw.githubusercontent.com/rohitshukla11/ETHOnline/master/workflows/risk-scoring/fixtures/bureau-tier.json",
+  "riskApiUrl": "https://raw.githubusercontent.com/rohitshukla11/Godaam/master/workflows/risk-scoring/fixtures/bureau-tier.json",
   "minScoreToApprove": 420,
   "protocolMaxLtvBps": 25000
 }

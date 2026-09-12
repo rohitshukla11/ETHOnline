@@ -1,8 +1,9 @@
 Godaam — Chainlink CRE Confidential Workflow: simulation transcripts
-Captured : 2026-09-12T18:04:31Z
+Captured : 2026-09-12T18:39:18Z
 cre CLI  : v1.33.0
 SDK      : @chainlink/cre-sdk 1.20.1
-Bureau   : https://raw.githubusercontent.com/rohitshukla11/ETHOnline/master/workflows/risk-scoring/fixtures/bureau-tier.json (tier 2, HTTP 200)
+Repo     : github.com/rohitshukla11/Godaam  (renamed from ETHOnline)
+Bureau   : https://raw.githubusercontent.com/rohitshukla11/Godaam/master/workflows/risk-scoring/fixtures/bureau-tier.json
 Org      : org_tEeUdpZM8kGDCj78
 
 ==============================================================================
@@ -17,12 +18,12 @@ Compiling workflow...
 ✓ Simulation limits enabled
   HTTP: req=120kb resp=250kb timeout=10s | ConfHTTP: req=125kb resp=500kb timeout=1m30s | Consensus obs=25kb | ChainWrite evm_report=50kb evm_gas=10000000 solana_report=265b solana_cu=300000 | WASM binary=100mb compressed=20mb
   Binary hash: e55537e4357a251e862630d6047caf1edcdedce82aa19fbb61bd335810b97827
-  Config hash: df6ada1e19113949ae405f8dee6903b430c602d40bfe1944ec0ce6495114bed8
+  Config hash: 04a2049a976eb899c9561bd98d6794c608a77680cbc0628de85763734ef4525d
 ✓ Loaded JSON from file: /Users/rohitshukla/ETHOnline/workflows/risk-scoring/fixtures/good-farmer.json
 ✓ Created HTTP trigger payload with 7 fields
-2026-09-12T23:34:37Z [SIMULATION] Simulator Initialized
+2026-09-13T00:09:23Z [SIMULATION] Simulator Initialized
 
-2026-09-12T23:34:37Z [SIMULATION] Running trigger trigger=http-trigger@1.0.0-alpha
+2026-09-13T00:09:23Z [SIMULATION] Running trigger trigger=http-trigger@1.0.0-alpha
 ╭────────────────────────────────────────────────────────────────────────────────────────────────────╮
 │ Trigger requested TEE Execution your trigger will run in one of the following Tees:                │
 │     - AWS Nitro in us-west-2                                                                       │
@@ -33,9 +34,9 @@ Compiling workflow...
 │                                                                                                    │
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
-2026-09-12T23:34:37Z [USER LOG] [TEE] scoring loan 1 for 0x111111... (raw inputs stay in enclave)
-2026-09-12T23:34:37Z [USER LOG] [TEE] decision: approved=true score=893 ltv=22000bps principal=880000000 (6dp) bureau=live
-2026-09-12T23:34:37Z [USER LOG] [TEE] report signed by the DON for loan 1
+2026-09-13T00:09:23Z [USER LOG] [TEE] scoring loan 1 for 0x111111... (raw inputs stay in enclave)
+2026-09-13T00:09:24Z [USER LOG] [TEE] decision: approved=true score=893 ltv=22000bps principal=880000000 (6dp) bureau=live
+2026-09-13T00:09:24Z [USER LOG] [TEE] report signed by the DON for loan 1
 
 ✓ Workflow Simulation Result:
 {
@@ -53,8 +54,8 @@ Compiling workflow...
   "riskScore": 893
 }
 
-2026-09-12T23:34:37Z [SIMULATION] Execution finished signal received
-2026-09-12T23:34:37Z [SIMULATION] Skipping WorkflowEngineV2
+2026-09-13T00:09:24Z [SIMULATION] Execution finished signal received
+2026-09-13T00:09:24Z [SIMULATION] Skipping WorkflowEngineV2
 
 ╭──────────────────────────────────────────────────────╮
 │ Simulation complete! Ready to deploy your workflow?  │
@@ -74,12 +75,12 @@ Compiling workflow...
 ✓ Simulation limits enabled
   HTTP: req=120kb resp=250kb timeout=10s | ConfHTTP: req=125kb resp=500kb timeout=1m30s | Consensus obs=25kb | ChainWrite evm_report=50kb evm_gas=10000000 solana_report=265b solana_cu=300000 | WASM binary=100mb compressed=20mb
   Binary hash: e55537e4357a251e862630d6047caf1edcdedce82aa19fbb61bd335810b97827
-  Config hash: df6ada1e19113949ae405f8dee6903b430c602d40bfe1944ec0ce6495114bed8
+  Config hash: 04a2049a976eb899c9561bd98d6794c608a77680cbc0628de85763734ef4525d
 ✓ Loaded JSON from file: /Users/rohitshukla/ETHOnline/workflows/risk-scoring/fixtures/risky-farmer.json
 ✓ Created HTTP trigger payload with 6 fields
-2026-09-12T23:34:42Z [SIMULATION] Simulator Initialized
+2026-09-13T00:09:28Z [SIMULATION] Simulator Initialized
 
-2026-09-12T23:34:42Z [SIMULATION] Running trigger trigger=http-trigger@1.0.0-alpha
+2026-09-13T00:09:28Z [SIMULATION] Running trigger trigger=http-trigger@1.0.0-alpha
 ╭────────────────────────────────────────────────────────────────────────────────────────────────────╮
 │ Trigger requested TEE Execution your trigger will run in one of the following Tees:                │
 │     - AWS Nitro in us-west-2                                                                       │
@@ -90,9 +91,9 @@ Compiling workflow...
 │                                                                                                    │
 ╰────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
-2026-09-12T23:34:42Z [USER LOG] [TEE] scoring loan 2 for 0x222222... (raw inputs stay in enclave)
-2026-09-12T23:34:42Z [USER LOG] [TEE] decision: approved=false score=271 ltv=0bps principal=0 (6dp) bureau=live
-2026-09-12T23:34:42Z [USER LOG] [TEE] report signed by the DON for loan 2
+2026-09-13T00:09:28Z [USER LOG] [TEE] scoring loan 2 for 0x222222... (raw inputs stay in enclave)
+2026-09-13T00:09:28Z [USER LOG] [TEE] decision: approved=false score=271 ltv=0bps principal=0 (6dp) bureau=live
+2026-09-13T00:09:28Z [USER LOG] [TEE] report signed by the DON for loan 2
 
 ✓ Workflow Simulation Result:
 {
@@ -110,8 +111,8 @@ Compiling workflow...
   "riskScore": 271
 }
 
-2026-09-12T23:34:42Z [SIMULATION] Execution finished signal received
-2026-09-12T23:34:42Z [SIMULATION] Skipping WorkflowEngineV2
+2026-09-13T00:09:28Z [SIMULATION] Execution finished signal received
+2026-09-13T00:09:28Z [SIMULATION] Skipping WorkflowEngineV2
 
 ╭──────────────────────────────────────────────────────╮
 │ Simulation complete! Ready to deploy your workflow?  │
