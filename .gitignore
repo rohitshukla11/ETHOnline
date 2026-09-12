@@ -16,3 +16,6 @@ workflows/risk-scoring/dist/
 
 # transpiled test scratch (npm run test:worldid)
 test/.transpiled/
+
+# TypeScript incremental build cache
+tsconfig.tsbuildinfo

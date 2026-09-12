@@ -9,24 +9,29 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Verifies a World ID Orb proof, then attests the nullifier onchain and grants ATS KYC.
+ * Verifies a World ID proof, then attests the nullifier onchain and grants ATS KYC.
  * The proof is checked server-side; the client can never self-declare verification.
+ *
+ * `worldIdResult` is IDKit's completion payload, forwarded verbatim. It is NOT
+ * reshaped here: the v4 body schema belongs to the SDK, and hand-rebuilding it is how
+ * the mixed-mode bug in worldcoin/idkit#204 gets reintroduced. `address` is carried
+ * separately because it is what the nullifier gets bound to onchain - the signal is
+ * already inside the proof.
  */
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
-  if (!body?.address || !body?.proof || !body?.nullifier_hash) {
-    return NextResponse.json({ error: "Malformed request" }, { status: 400 });
+  if (!body?.address || !body?.worldIdResult) {
+    return NextResponse.json(
+      {
+        error:
+          "Malformed request. Expected { address, worldIdResult } where worldIdResult " +
+          "is the completion payload from IDKit.",
+      },
+      { status: 400 }
+    );
   }
 
-  const result = await verifyWorldProof(
-    {
-      proof: body.proof,
-      merkle_root: body.merkle_root,
-      nullifier_hash: body.nullifier_hash,
-      verification_level: body.verification_level,
-    },
-    body.address
-  );
+  const result = await verifyWorldProof(body.worldIdResult);
 
   if (!result.success) {
     return NextResponse.json({ error: result.detail, code: result.code }, { status: 403 });

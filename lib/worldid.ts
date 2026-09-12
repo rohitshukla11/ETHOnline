@@ -1,34 +1,22 @@
 import "server-only";
 
 import { checkVerificationLevel } from "./worldid-policy";
-import { hashSignal } from "./worldid-signal";
 
 /**
  * World's verification API.
  *
  * `/api/v2/verify/{app_id}` is retired. It still answers, but returns
  * `{"code":"invalid_action","detail":"Action not found."}` for an action that
- * demonstrably exists — the v1 precheck endpoint resolves the same app/action pair
+ * demonstrably exists - the v1 precheck endpoint resolves the same app/action pair
  * happily, and v4 accepts it. The error names the wrong cause, which cost real
  * debugging time, so this is pinned to v4 deliberately.
  *
- * v4 is a single unified endpoint: it serves World ID 4.0 proofs and legacy 3.0
- * proofs, selected by `protocol_version` in the body. `rp_id` is preferred in the
- * path, but `app_id` is accepted for backward compatibility — which is what lets us
- * stay on legacy proofs without registering as a 4.0 Relying Party.
+ * The v4 path takes the **rp_id**, not the app_id. An app_id is accepted there for
+ * backward compatibility with legacy proofs, but a World ID 4.0 proof - which is what
+ * a Selfie Check preset produces - is scoped to the Relying Party, so the rp_id is
+ * the correct identifier and the only one that works for 4.0.
  */
-const WORLD_API_BASE = process.env.WORLD_API_BASE ?? "https://developer.world.org";
-
-export type WorldProof = {
-  proof: string;
-  merkle_root: string;
-  nullifier_hash: string;
-  verification_level: string;
-};
-
-export type WorldVerifyResult =
-  | { success: true; nullifierHash: bigint; verificationLevel: string }
-  | { success: false; code: string; detail: string };
+const WORLD_API_BASE = process.env.WORLD_API_BASE ?? "https://developer.worldcoin.org";
 
 /** Per-credential result inside a v4 response. */
 type V4ResultItem = {
@@ -43,53 +31,41 @@ type V4Response = {
   code?: string;
   detail?: string;
   results?: V4ResultItem[];
+  nullifier?: string;
+  nullifier_hash?: string;
 };
 
+export type WorldVerifyResult =
+  | { success: true; nullifierHash: bigint; verificationLevel: string }
+  | { success: false; code: string; detail: string };
+
 /**
- * Verifies a World ID Orb proof against the Developer Portal.
+ * Verifies a World ID proof against the Developer Portal.
  *
- * `signal` must be the farmer's wallet address so the proof cannot be replayed for
- * a different account. It is hashed to a field element before sending; see
- * lib/worldid-signal.ts for why the encoding matters.
+ * `result` is the completion payload handed back by IDKit - passed through rather
+ * than reshaped, because the v4 body schema is the SDK's concern and rebuilding it
+ * by hand is how the mixed-mode bug in worldcoin/idkit#204 gets reintroduced.
+ *
+ * The signal is already bound into the proof by the widget; it is not re-sent here.
  */
 export async function verifyWorldProof(
-  proof: WorldProof,
-  signal: string
+  result: unknown
 ): Promise<WorldVerifyResult> {
-  const appId = process.env.NEXT_PUBLIC_WORLD_APP_ID;
-  const action = process.env.NEXT_PUBLIC_WORLD_ACTION;
-  if (!appId || !action) {
-    return { success: false, code: "config", detail: "World app id/action not configured" };
+  const rpId = process.env.NEXT_PUBLIC_WORLD_RP_ID;
+  if (!rpId) {
+    return {
+      success: false,
+      code: "rp_not_configured",
+      detail:
+        "NEXT_PUBLIC_WORLD_RP_ID is not set. World ID 4.0 proofs are scoped to a " +
+        "Relying Party and cannot be verified without it.",
+    };
   }
 
-  // Reject an unacceptable credential before spending a network round trip. The
-  // response is re-checked below; this is the client-declared value.
-  const declared = checkVerificationLevel(proof.verification_level);
-  if (!declared.ok) {
-    return { success: false, code: declared.code, detail: declared.detail };
-  }
-
-  const res = await fetch(`${WORLD_API_BASE}/api/v4/verify/${appId}`, {
+  const res = await fetch(`${WORLD_API_BASE}/api/v4/verify/${rpId}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      protocol_version: "3.0",
-      action,
-      // Required at the top level for legacy proofs. Not a replay defence on its
-      // own - the signal binding below is what ties a proof to one address.
-      nonce: crypto.randomUUID(),
-      responses: [
-        {
-          // v4 carries the credential as `identifier`; there is no
-          // `verification_level` field on a response item.
-          identifier: declared.level,
-          nullifier: proof.nullifier_hash,
-          merkle_root: proof.merkle_root,
-          proof: proof.proof,
-          signal_hash: hashSignal(signal),
-        },
-      ],
-    }),
+    body: JSON.stringify(result),
     cache: "no-store",
   });
 
@@ -106,17 +82,39 @@ export async function verifyWorldProof(
     };
   }
 
-  // Re-assert the credential against what the portal confirmed, not what the client
-  // claimed. A client can send any verification_level it likes.
   const confirmed = body.results?.find((r) => r.success === true)?.identifier;
-  const check = checkVerificationLevel(confirmed ?? declared.level);
+
+  // Assert the credential against what the portal confirmed, never what the client
+  // claimed. A client can put any string in its own payload.
+  const check = checkVerificationLevel(confirmed);
   if (!check.ok) {
+    // TODO(selfie-check): this log is how the real Selfie Check identifier gets
+    // discovered - the first genuine proof prints it. Once ACCEPTED_VERIFICATION_LEVELS
+    // holds that value, remove this line. It prints only the credential class, never
+    // the proof or the nullifier.
+    console.warn(
+      `[worldid] proof verified by World but credential "${String(confirmed)}" is not ` +
+        `in ACCEPTED_VERIFICATION_LEVELS. If this is Selfie Check, that string is the ` +
+        `value to put in lib/worldid-policy.ts.`
+    );
     return { success: false, code: check.code, detail: check.detail };
+  }
+
+  // v4 reports the nullifier on the envelope; legacy payloads carried nullifier_hash.
+  const rawNullifier = body.nullifier ?? body.nullifier_hash;
+  if (!rawNullifier) {
+    return {
+      success: false,
+      code: "missing_nullifier",
+      detail:
+        "World returned success but no nullifier. Without it one human cannot be " +
+        "bound to one claim, so the verification is refused.",
+    };
   }
 
   return {
     success: true,
-    nullifierHash: BigInt(proof.nullifier_hash),
+    nullifierHash: BigInt(rawNullifier),
     verificationLevel: check.level,
   };
 }

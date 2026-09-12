@@ -3,7 +3,8 @@
 **Confidential agricultural lending vault.** A farmer's grain sitting in a certified
 warehouse becomes onchain collateral; a Chainlink CRE Confidential Workflow underwrites the
 *farmer* inside a TEE so the protocol can lend more than the grain alone justifies; World ID
-World ID Orb verification makes sure one human can only ever be one borrower.
+World ID Selfie Check ties each claim to a liveness-verified person, and the
+nullifier makes sure one identity gets one claim.
 
 ETHGlobal ETHOnline 2026 — Hedera / Chainlink / World tracks.
 
@@ -100,33 +101,40 @@ Node-free pass.
   [docs/cre-integration-notes.md](docs/cre-integration-notes.md) for the SDK gotchas and
   the one unresolved architectural constraint (CRE has no Hedera chain selector)
 
-### World — Proof of personhood (Orb)
+### World — Selfie Check
 - Gate, not a checkmark: `WarehouseReceipt.grantKyc` reverts with
   `WorldIdVerificationRequired` unless the nullifier is onchain, so no verification means no
   collateral, which means no loan
+- **What Selfie Check does and does not give you.** It is a medium-assurance biometric
+  credential — device-camera liveness and facial similarity. It binds a collateral claim
+  to a liveness-verified person and makes repeated claims materially harder. It is **not**
+  a strict one-person-one-account guarantee; that requires Orb, which is unavailable to
+  Indian users (Orb services paused in India since 2023, and the Document credential does
+  not support Indian documents). What *is* strictly enforced, onchain, is one claim per
+  identity per action: the nullifier is recorded in `WorldIdRegistry` and a second address
+  presenting the same one is refused
 - **The accepted credential is a policy decision, not an architectural one.** The contracts
   are credential-agnostic: they record and check a nullifier and never inspect which
   credential produced it. The accepted set is one line —
-  `ACCEPTED_VERIFICATION_LEVELS` in [lib/worldid-policy.ts](lib/worldid-policy.ts) — and it
-  holds `{orb, document}`. **Production lending against real collateral should require
-  `orb` alone.** This demo also accepts `document` (NFC passport or national ID, medium
-  assurance) because no orb was reachable inside the submission window. `device` is
-  rejected: a phone is not a person, and one human can hold many
-- Selfie Check was the original design; it was dropped once the SDK showed that every IDKit
-  preset requires World ID 4.0 Relying Party registration regardless of the proof version it
-  returns. The reasoning is written up in [docs/world-feedback.md](docs/world-feedback.md)
+  `ACCEPTED_VERIFICATION_LEVELS` in [lib/worldid-policy.ts](lib/worldid-policy.ts).
+  `device` is rejected: a phone is not a person, and one human can hold many
+- Reaching Selfie Check required enabling World ID 4.0: every IDKit preset goes through
+  `IDKit.request`, whose `rp_context` is required and must be signed by the Relying Party
+  key server-side. That signing route is [app/api/rp-signature](app/api/rp-signature/route.ts);
+  the key never carries a `NEXT_PUBLIC_` prefix. Written up as Finding 1 in
+  [docs/world-feedback.md](docs/world-feedback.md)
 - The credential check is an allowlist, not a blocklist: `lib/worldid-policy.ts` asserts the
-  level equals `orb` and rejects everything else, so a future credential cannot satisfy the
-  gate by default
-- **Status, plainly:** the gate is World ID Orb verification, enforced onchain — an
-  unverified address is refused at all four downstream points on live Hedera testnet
+  level against an explicit set and rejects everything else, so a future credential cannot
+  satisfy the gate by default
+- **Status, plainly:** the gate is enforced onchain and proven — an unverified address is
+  refused at all four downstream points on live Hedera testnet
   (`WorldIdVerificationRequired`, `NotVerified`, `KycRequired`; see
-  [docs/evidence/](docs/evidence/)). The proof path is demonstrated up to World's own
-  rejection of an invalid proof. **A full round-trip needs a real World ID credential**:
-  the simulator is staging-only, and staging is unreachable from IDKit 1.x with an app id
-  issued today — the reason is written up as Finding 2 in
-  [docs/world-feedback.md](docs/world-feedback.md). If you open the app and cannot
-  complete verification, that is this constraint, not a fault
+  [docs/evidence/](docs/evidence/)). The full World ID request path is built against
+  IDKit 4.2.x with a server-signed `rp_context`. **Selfie Check itself is access-gated**:
+  it is a Beta credential that World enables per app on request, and that request is
+  pending. Until it lands, a proof cannot be completed. See
+  [docs/worldid-selfiecheck-runbook.md](docs/worldid-selfiecheck-runbook.md) for the exact
+  steps once it does, and Finding 7 in [docs/world-feedback.md](docs/world-feedback.md)
 - Nullifier reuse across addresses is rejected (`NullifierAlreadyUsed`)
 - Integration feedback: [docs/world-feedback.md](docs/world-feedback.md)
 

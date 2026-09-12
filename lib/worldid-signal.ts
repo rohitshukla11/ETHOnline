@@ -1,6 +1,18 @@
 /**
  * World ID signal hashing.
  *
+ * NOT CURRENTLY IMPORTED BY PRODUCTION CODE, and deliberately retained.
+ *
+ * Under IDKit 1.x the server rebuilt the verify body and had to compute `signal_hash`
+ * itself. Under 4.x the preset takes `signal` and the SDK hashes it internally, and
+ * `lib/worldid.ts` forwards the completion payload verbatim rather than reconstructing
+ * it - so nothing here is on the request path any more.
+ *
+ * It is kept because the test vectors in test/worldid-policy.test.mjs are the evidence
+ * behind Finding 3 in docs/world-feedback.md, and because the moment anything needs to
+ * compute a signal hash server-side again, the branching rule below is the part that is
+ * easy to get wrong and expensive to debug.
+ *
  * `hashToField(x) = keccak256(x) >> 8` — the shift keeps the digest inside the
  * BN254 scalar field the circuit works over.
  *

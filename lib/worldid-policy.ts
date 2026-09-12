@@ -19,22 +19,35 @@
  * THIS IS THE POLICY LINE. One place, deliberately, because it is a decision rather
  * than an implementation detail.
  *
- * `orb`      - World's strongest proof of personhood.
- * `document` - NFC passport or national ID, medium assurance.
+ * ---------------------------------------------------------------------------
+ * TODO(selfie-check): replace this set with the real Selfie Check identifier.
  *
- * Why both: the contracts are credential-agnostic. They record and check a nullifier
- * and never inspect which credential produced it, so the accepted level is policy,
- * not architecture. Production lending against real collateral should require `orb`
- * alone; this demo also accepts `document` because no orb was reachable inside the
- * submission window.
+ * The v4 verify response returns the credential in `results[].identifier`. The exact
+ * string Selfie Check reports is NOT documented and is NOT guessed here - guessing it
+ * would either silently reject every real proof, or, worse, be widened until it
+ * accepted one.
  *
- * This set is kept in step with what the frontend requests. `app/verify/page.tsx`
- * asks for `VerificationLevel.Document`, which idkit-core expands to exactly
- * ["document", "orb"] - the same two values. Changing one without the other lets a
- * credential through the widget that the server then refuses, or vice versa.
+ * How to obtain it: complete one real Selfie Check (see
+ * docs/worldid-selfiecheck-runbook.md). `verifyWorldProof` logs the received
+ * identifier on rejection, so the first genuine proof prints the answer. Put that
+ * value here, update the "accepted set is exactly" test alongside it, and delete
+ * this block.
+ *
+ * Until then this set holds the credentials the previous IDKit 1.x integration
+ * accepted, so the gate stays closed rather than open.
+ * ---------------------------------------------------------------------------
+ *
+ * `orb`      - World's highest-assurance credential. Unavailable to Indian users:
+ *              Orb services have been paused in India since 2023.
+ * `document` - NFC passport or national ID, medium assurance. Not supported for
+ *              Indian documents.
  *
  * Not `device`: device-level is a phone attestation, not a person, and one human can
- * hold many devices. That defeats the entire Sybil guarantee.
+ * hold many devices. That defeats the Sybil property entirely.
+ *
+ * Whatever ends up here, keep it an ALLOWLIST. The original implementation rejected
+ * only "device" and accepted everything else, which fails open on every credential
+ * World ships in future. This set is asserted by a test for exactly that reason.
  */
 export const ACCEPTED_VERIFICATION_LEVELS = ["orb", "document"] as const;
 

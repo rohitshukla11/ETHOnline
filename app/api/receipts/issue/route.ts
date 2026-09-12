@@ -37,7 +37,7 @@ export async function POST(req: Request) {
   });
   if (!kyc) {
     return NextResponse.json(
-      { error: "Address is not KYC-granted. Complete World ID Orb verification first." },
+      { error: "Address is not KYC-granted. Complete World ID verification first." },
       { status: 403 }
     );
   }

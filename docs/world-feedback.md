@@ -4,18 +4,28 @@ Submitted for the World track, ETHOnline 2026.
 
 ## What we built
 
-Godaam gates collateral issuance on **World ID proof of personhood**. A warehouse receipt
-cannot be held without it, and a nullifier can bind to exactly one address.
+Godaam gates collateral issuance on **World ID Selfie Check**. A warehouse receipt cannot
+be held without a verification, and a nullifier can bind to exactly one address.
 
-The accepted credential set is `{orb, document}`, declared on one line as
-`ACCEPTED_VERIFICATION_LEVELS` in `lib/worldid-policy.ts`. **That is a policy decision,
-not an architectural one**, and worth stating plainly: the contracts are
-credential-agnostic — `WorldIdRegistry` records a nullifier and `WarehouseReceipt` checks
-it, and neither ever inspects which credential produced it. Production lending against
-real collateral should require `orb` alone. This demo also accepts `document` (NFC
-passport or national ID, medium assurance) because no orb was reachable inside the
-submission window. `device` is rejected outright: a phone is not a person, and one human
-can hold many, which would defeat the Sybil guarantee the whole design rests on.
+**What that does and does not guarantee**, stated precisely because the difference
+matters. Selfie Check is a medium-assurance biometric credential: device-camera liveness
+and facial similarity. It binds a claim to a liveness-verified person and makes repeated
+claims materially harder. It is **not** a strict one-person-one-account guarantee. That
+requires Orb, which is unavailable to Indian users — Orb services have been paused in
+India since 2023, and the Document credential does not support Indian documents. For an
+agricultural lending protocol aimed at Indian farmers, Orb is not an option we can build
+on regardless of preference.
+
+What *is* strictly enforced, onchain, is **one claim per identity per action**: the
+nullifier is recorded in `WorldIdRegistry`, and a second address presenting the same one
+is refused. That is the property the undercollateralised lending actually rests on, and
+it holds independently of credential strength.
+
+The accepted credential set is one line — `ACCEPTED_VERIFICATION_LEVELS` in
+`lib/worldid-policy.ts`. **That is a policy decision, not an architectural one**: the
+contracts are credential-agnostic. `WorldIdRegistry` records a nullifier and
+`WarehouseReceipt` checks it, and neither ever inspects which credential produced it.
+`device` is rejected outright: a phone is not a person, and one human can hold many.
 
 The nullifier hash is written to `WorldIdRegistry` on Hedera testnet and is a hard
 precondition for `WarehouseReceipt.grantKyc`, which is itself a precondition for minting or
@@ -212,7 +222,43 @@ parameter, since it is a set selector rather than a level.
 
 ---
 
-## Finding 5 — blocklist vs allowlist on credential checks
+## Finding 5 — Selfie Check is named in a bounty but gated behind an out-of-band request
+
+This one is process rather than API, and it is the one that cost the most.
+
+**The situation.** Selfie Check (Beta) is the credential a hackathon bounty required.
+It cannot be requested in code until World enables a per-app feature flag, and the flag
+is obtained by emailing `developers@toolsforhumanity.com` or finding a sponsor engineer.
+The credentials page says *"Request access to enable Selfie Check (Beta) for your app"*
+and **states no turnaround time**.
+
+**Why it is a problem specifically for hackathons.** A team working to a fixed deadline
+cannot plan around an unbounded external dependency. The choice is either to build the
+whole path on the assumption the flag arrives — and have nothing demonstrable if it does
+not — or to build a different credential and abandon the bounty. We built the full path
+and gated the last step, but that was only possible because the failure mode is
+distinguishable: a `feature_unavailable` error proves the plumbing is correct.
+
+Compounding it: Orb is not an alternative for our users. Orb services have been paused
+in India since 2023, and the Document credential does not support Indian documents. For
+an Indian agricultural lending protocol, Selfie Check is not a preference, it is the
+only reachable credential — which makes the access gate a hard blocker rather than an
+inconvenience.
+
+**Suggested fix,** in order of usefulness:
+
+1. State a turnaround time on the credentials page, even a pessimistic one. "Allow five
+   working days" is planable; silence is not.
+2. Auto-enable the flag for **staging** apps. The risk a gate protects against is
+   production misuse; a staging app that can only talk to the simulator carries none of
+   it, and it would let an integration be built and proven end to end before the
+   production request is answered.
+3. Where a credential is named in a hackathon bounty, pre-enable it for apps created
+   during that event, or give sponsor engineers a documented way to flip it.
+
+---
+
+## Finding 6 — blocklist vs allowlist on credential checks
 
 Our own bug, but the shape is general.
 
