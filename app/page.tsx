@@ -1,11 +1,11 @@
 import Link from "next/link";
 
 const stats = [
-  { value: "220%", label: "Loan to value, certified in a TEE" },
-  { value: "42,000", label: "kg of wheat under custody" },
+  { value: "220%", lines: ["Loan to value,", "certified in a TEE"] },
+  { value: "42,000", lines: ["kg of wheat", "under custody"] },
   // The privacy claim as a single number. This is the one stat that states what the
   // system does not do, which is the part that is hard to fake.
-  { value: "0", label: "Private inputs written onchain" },
+  { value: "0", lines: ["private inputs", "written onchain"] },
 ];
 
 /**
@@ -38,35 +38,64 @@ const steps = [
 export default function Home() {
   return (
     <div className="space-y-14">
-      <section className="flex flex-col items-center text-center">
-        <span className="pill">Live on Hedera</span>
+      <section className="flex flex-col items-center pt-6 text-center">
+        <span className="pill">Live on Hedera testnet</span>
 
-        <h1 className="mt-5 text-[34px] leading-[38px] tracking-[-0.025em] sm:text-hero">
-          Your harvest is already collateral
+        {/* The break is explicit rather than left to the wrap algorithm, which
+            balanced it as "Your harvest is / already collateral". The <br> is
+            suppressed below sm so narrow screens wrap naturally instead of
+            stranding a word. */}
+        <h1 className="mt-7 text-[38px] font-bold leading-[1.06] tracking-[-0.03em] sm:text-[42px]">
+          Your harvest is already
+          <br className="hidden sm:inline" /> collateral
         </h1>
 
-        <p className="mt-4 max-w-[460px] text-[15px] leading-relaxed text-muted">
+        <p className="mt-5 max-w-[460px] text-[16px] leading-[1.6] text-muted">
           Farmers tokenize a certified warehouse receipt, get scored privately inside a
           secure enclave, and borrow above what the grain alone would allow.
         </p>
 
-        <div className="mt-7 flex flex-wrap justify-center gap-3">
-          <Link href="/verify" className="btn">
+        <div className="mt-8 flex flex-wrap justify-center gap-3.5">
+          <Link href="/verify" className="btn px-8 py-3 text-[16px] font-bold">
             Launch app
           </Link>
-          <Link href="#how-it-works" className="btn-ghost">
+          <Link href="#how-it-works" className="btn-ghost px-8 py-3 text-[16px] font-bold">
             How it works
           </Link>
         </div>
-      </section>
 
-      <section className="grid gap-3 sm:grid-cols-3">
-        {stats.map((s) => (
-          <div key={s.label} className="card">
-            <p className="metric">{s.value}</p>
-            <p className="mt-1.5 text-label text-muted">{s.label}</p>
-          </div>
-        ))}
+        <div className="mt-12 grid w-full gap-3.5 sm:grid-cols-3">
+          {stats.map((s) => (
+            <div key={s.value} className="card px-4 py-6 text-center">
+              <p className="text-[31px] font-medium leading-none tabular-nums text-wheat">
+                {s.value}
+              </p>
+              <p className="mt-3 text-[14px] leading-[1.35] text-muted">
+                {s.lines[0]}
+                <br />
+                {s.lines[1]}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <Link
+          href="#how-it-works"
+          aria-label="Skip to how it works"
+          className="mt-11 flex h-10 w-10 items-center justify-center rounded-pill
+            border border-border-strong text-muted transition-colors
+            hover:border-muted hover:text-text"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path
+              d="M8 3v10M3.5 8.5 8 13l4.5-4.5"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </Link>
       </section>
 
       <section id="how-it-works" className="scroll-mt-8">
