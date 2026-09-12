@@ -1,0 +1,9 @@
+Godaam — Sourcify verification status, chain 296
+Captured: 2026-09-12T12:25:46Z
+Source: GET https://sourcify.dev/server/v2/contract/296/<address>
+
+  WorldIdRegistry    0xE3a02179CCa05b438bd157E2E00434d28ec26984  match=exact_match  runtimeMatch=exact_match
+  MockUSDC           0x2CEBEA8360D0c71B78f320F7CdF4D06486ad9DCd  match=exact_match  runtimeMatch=exact_match
+  WarehouseReceipt   0x0F2b3D243BB0e882dE0aB9Ed0b2754e8f473EaD7  match=exact_match  runtimeMatch=exact_match
+  GodaamVault        0x63Af372CEAa1d2C8dADF6Ea503c99edB1960d07d  match=exact_match  runtimeMatch=exact_match
+  MockCreForwarder   0xaDFc7D556C20908151e8C3C56C65b6F45648C736  match=exact_match  runtimeMatch=exact_match

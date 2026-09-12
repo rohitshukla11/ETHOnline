@@ -111,9 +111,15 @@ Node-free pass.
 - The credential check is an allowlist, not a blocklist: `lib/worldid-policy.ts` asserts the
   level equals `orb` and rejects everything else, so a future credential cannot satisfy the
   gate by default
-- **This deployment targets the World staging environment**, so verification is completed
-  with the World App simulator rather than a live orb-verified identity. If you open the app
-  and cannot complete verification, that is the environment, not a fault
+- **Status, plainly:** the gate is World ID Orb verification, enforced onchain — an
+  unverified address is refused at all four downstream points on live Hedera testnet
+  (`WorldIdVerificationRequired`, `NotVerified`, `KycRequired`; see
+  [docs/evidence/](docs/evidence/)). The proof path is demonstrated up to World's own
+  rejection of an invalid proof. **A full round-trip needs a real World ID credential**:
+  the simulator is staging-only, and staging is unreachable from IDKit 1.x with an app id
+  issued today — the reason is written up as Finding 2 in
+  [docs/world-feedback.md](docs/world-feedback.md). If you open the app and cannot
+  complete verification, that is this constraint, not a fault
 - Nullifier reuse across addresses is rejected (`NullifierAlreadyUsed`)
 - Integration feedback: [docs/world-feedback.md](docs/world-feedback.md)
 

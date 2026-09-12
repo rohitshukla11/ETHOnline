@@ -51,7 +51,8 @@ async function main() {
   const receiptsAddr = await receipts.getAddress();
   const vaultAddr = await vault.getAddress();
 
-  const unverified = ethers.Wallet.createRandom().address;
+  // Override with GATE_TEST_ADDRESS to pin the evidence to a known address.
+  const unverified = process.env.GATE_TEST_ADDRESS ?? ethers.Wallet.createRandom().address;
   console.log(`unverified address  ${unverified}`);
   console.log(`isVerified()        ${await registry.isVerified(unverified)}`);
   console.log(`kycGranted()        ${await receipts.kycGranted(unverified)}\n`);
@@ -82,6 +83,19 @@ async function main() {
   ok.push(await expectRevert("3. requestLoan", vault.interface, {
     to: vaultAddr, from: existingUnverified,
     data: vault.interface.encodeFunctionData("requestLoan", [1n]),
+  }));
+
+  // 4. KycRequired guards a different path from the three above. `issue` checks
+  //    isVerified(to) first, so WorldIdVerificationRequired short-circuits before KYC
+  //    is ever consulted. KycRequired fires in _update when a receipt is transferred
+  //    to an address that is not on the compliance whitelist - the ATS control-list
+  //    leg. Receipt #1 is held by the deployer, so transferring it to the unverified
+  //    address exercises exactly that.
+  const holder = new ethers.Wallet(need("DEPLOYER_PRIVATE_KEY")).address;
+  console.log(`\n   (receipt #1 holder: ${holder} -> transfer to the unverified address)`);
+  ok.push(await expectRevert("4. transfer receipt #1", receipts.interface, {
+    to: receiptsAddr, from: holder,
+    data: receipts.interface.encodeFunctionData("transferFrom", [holder, unverified, 1n]),
   }));
 
   // Control: the same call from a VERIFIED address must NOT revert with a gate error,

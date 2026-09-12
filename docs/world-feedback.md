@@ -86,7 +86,87 @@ naming the removed export would help people scope the work before starting it.
 
 ---
 
-## Finding 2 — blocklist vs allowlist on credential checks
+## Finding 2 — environment moved from app-level to request-level, with no migration note
+
+A 1.x integration using an app id issued today has **no reachable staging path**, and
+nothing in the portal or the docs says so.
+
+**Evidence.** In `idkit-core@1.5.0` the only staging logic in the entire package is:
+
+```js
+validate_bridge_url(bridge_url, app_id.includes("staging"))
+```
+
+Staging is inferred by string-matching `"staging"` inside the app id — the old
+`app_staging_…` convention. There is no `environment` parameter anywhere in 1.5.0.
+
+In 4.x it moved into the request config:
+
+```ts
+environment?: "production" | "staging" | "sandbox";   // IDKitRequestConfig
+```
+
+So environment stopped being a property of the app and became a per-request parameter,
+and the portal stopped exposing the choice. We created two apps looking for a staging
+toggle before reading the package source and finding there was nothing to toggle.
+
+**The consequence.** The simulator is staging-only — the docs are explicit that
+*"staging apps must use the Worldcoin Simulator, whereas production apps will use the
+World App."* Reaching staging now requires either an app id that is no longer issued, or
+4.x, which requires `rp_context` and therefore 4.0 RP registration (Finding 1). For a
+1.x integration those are both closed, so there is no way to test a proof round-trip
+without a real World ID credential on a phone.
+
+**Suggested fix:** a note on the testing page stating that pre-4.x integrations cannot
+reach staging with app ids issued after the change, and what the upgrade path is.
+
+---
+
+## Finding 3 — `hashToField` branches on input type, silently
+
+**The behaviour.** From `idkit-core`'s `src/lib/hashing.ts`:
+
+```js
+function hashToField(input) {
+  if (Bytes.validate(input) || Hex.validate(input)) return hashEncodedBytes(input);
+  return hashString(input);
+}
+```
+
+Hex and bytes hash as **raw bytes**; everything else as a **UTF-8 string**. An Ethereum
+address is valid hex, so a 42-character address hashes as 20 raw bytes rather than as
+its text form. The two produce different field elements:
+
+```
+0x27a89B8262b6A51167488edC860E39fbC0111B9B
+  raw-bytes branch   0x008e8ce766ead3a3d31ad7b684b4af9f41fa7db7d9b3d0ef3bdc6330d672cd13   <- correct
+  string branch      0x009333b6b36891940b9fdb38f8e86900d71250c8a41f149360b1376a7ab5246a
+```
+
+**Why it is dangerous.** Compute the wrong branch and the request is structurally valid,
+the proof is rejected, and no error mentions the signal or its encoding. Nothing points
+at the cause.
+
+**How we caught it.** Not from the docs — by checking our implementation against the
+documented default for an empty signal and confirming it matched:
+
+```
+hashToField("") == keccak256("") >> 8
+                == 0x00c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a4
+```
+
+That default is published in the verify endpoint's schema, which made it a usable test
+vector. Only after matching it did we read the implementation and find the branch.
+
+Compounding it: `idkit-core@1.5.0` does not re-export `hashToField` from its package
+root, so an integrator computing `signal_hash` server-side has to reimplement it.
+
+**Suggested fix:** document the branching wherever `signal_hash` is described, and
+export `hashToField` from the package root so it does not have to be reimplemented.
+
+---
+
+## Finding 4 — blocklist vs allowlist on credential checks
 
 Our own bug, but the shape is general.
 
@@ -142,37 +222,76 @@ the ergonomic default should fail closed.
 
 ### The gate is load-bearing (verified 12 Sep 2026)
 
-"No verification means no collateral means no loan", asserted against the deployed
-contracts rather than a local chain. Run it with
-`hardhat run scripts/check-gate-downstream.ts --network hederaTestnet`:
+"No verification means no collateral means no loan", asserted against the deployed,
+Sourcify-verified contracts. Raw `eth_call` from an unverified address — no gas, no
+funded account, no transactions:
 
 ```
-unverified address  0x94215adB606bE2e84324a0c671726a9799B55250
+unverified address  0x27a89B8262b6A51167488edC860E39fbC0111B9B
 isVerified()        false
 kycGranted()        false
 
-  1. grantKyc         REVERTED  WorldIdVerificationRequired(0x94215adB...B55250)
-  2. issue receipt    REVERTED  WorldIdVerificationRequired(0x94215adB...B55250)
-  3. requestLoan      REVERTED  NotVerified(0xff67F768bbFb28793920383cEDbb237cd8136eb6)
+  1. grantKyc              REVERTED  WorldIdVerificationRequired(0x27a89B82...0111B9B)
+  2. issue receipt         REVERTED  WorldIdVerificationRequired(0x27a89B82...0111B9B)
+  3. requestLoan           REVERTED  NotVerified(0xff67F768bbFb28793920383cEDbb237cd8136eb6)
+  4. transfer receipt #1   REVERTED  KycRequired(0x27a89B82...0111B9B)
 
 control - already-verified address 0x033588A8025F47128cf7B102412b81Ca43c2C7f0
   isVerified()  true
   grantKyc      OK - gate opens for a verified address
 ```
 
-The control matters: three reverts on their own could be caused by anything. The same
-call succeeding for a verified address is what shows the World ID check is the thing
+Note (2): `issue` checks `isVerified(to)` before KYC, so `WorldIdVerificationRequired`
+short-circuits and `KycRequired` is never reached on that path. `KycRequired` guards a
+different leg — transferring a receipt to an address outside the compliance whitelist —
+which is what (4) exercises. Both errors are therefore demonstrated live rather than
+inferred.
+
+The control matters: four reverts alone could have any cause. The same `grantKyc`
+succeeding for a verified address is what shows the World ID check is the thing
 refusing.
 
-Two measurement notes, because both produced false results first:
+Two measurement traps, both of which produced a false pass first:
 
 - `contract.fn.staticCall({ from })` does **not** test the contract. Hardhat rejects an
   unknown `from` with `transaction from mismatch` client-side, before the call reaches
-  the node. It looks exactly like the gate holding. Use raw `provider.call({ to, data,
-  from })`.
+  the node, and it reads exactly like the gate holding. Raw
+  `provider.call({ to, data, from })` is what actually exercises it.
 - A freshly generated address has no Hedera account, so Hashio answers
-  `Sender account not found` and the contract is never reached. Testing a
-  *sender*-side gate needs an address that exists on chain but was never verified.
+  `Sender account not found` and the contract is never reached. A *sender*-side gate has
+  to be tested with an address that exists on chain but was never verified.
+
+Reproduce: `GATE_TEST_ADDRESS=0x27a89B8262b6A51167488edC860E39fbC0111B9B npm run check:gate`.
+Raw capture in [evidence/01-gate-refusals-hedera-testnet.txt](evidence/01-gate-refusals-hedera-testnet.txt).
+
+### The proof path, as far as it can be driven
+
+```
+A. structurally valid request, fabricated proof
+   403 {"code":"invalid_format","error":"Expected either an ABI-encoded uint256[8]
+        string or a JSON-encoded array string in the correct format."}
+
+B. disallowed credential, refused before any network call
+   403 {"code":"insufficient_level","error":"World ID proof has verification level
+        \"document\", which Godaam does not accept. Accepted: orb."}
+```
+
+(A) is the useful one: the app id, action, endpoint and body shape all resolve, and
+World is rejecting the *proof itself*. Everything up to the cryptography is proven.
+
+### The gap, stated plainly
+
+**One proof round-trip is unproven.** We have not completed a genuine Orb verification
+end-to-end, for the external reason in Finding 2: the simulator is staging-only, 1.x
+infers staging from an `app_staging_…` id that is no longer issued, and the 4.x path
+that exposes `environment` requires 4.0 RP registration. Both routes are closed to a
+1.x integration without a real World ID credential on a phone.
+
+What that leaves unverified is exactly one thing: that a valid proof returns
+`success: true` and the route proceeds to `attestVerification` + `grantKyc`. The
+attestor's ability to make those two calls is separately proven on chain below, so the
+untested span is the single hop between World returning success and code that already
+works.
 
 ### Attestor path, exercised on chain
 
@@ -184,24 +303,6 @@ The calls the server route makes, signed by the attestor key
 | `attestVerification` | `0xad31b3a7c1e868a1b6328e9f6d781c2494963006283980d116bef88562c44ad0` |
 | `grantKyc` | `0x300f14f371eedd5b9abe27411711e24daae53f6e30167b94599adf9cac6925e0` |
 | `issue` (receipt #1) | `0x706484b4a48b6180d2d74b5ed1c635cfe85973a54e3a9127e2ec27ccd44dc6b1` |
-
-### Still outstanding: the end-to-end HTTP path
-
-The app id `app_39a2a32523be6184e8d1e77b709e6250` is live — the Developer Portal
-resolves it — but the configured action is not yet created, so a proof cannot be
-completed:
-
-```
-real app id + configured action     403 {"code":"invalid_action","detail":"Action not found."}
-real app id + an invented action    400 {"code":"invalid_action","detail":"Action not found."}
-bogus app id (control)              404 {"code":"not_found","detail":"App not found."}
-```
-
-Until the action exists, the widget-to-chain run and the live Sybil rejection are not
-captured. The contract-level Sybil guarantee is covered by
-`rejects a reused nullifier from a second address`, which asserts
-`NullifierAlreadyUsed`; the API-layer rejection is the stronger artifact and is still
-pending.
 
 ## Disclosed trust assumption
 
