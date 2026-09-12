@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAccount } from "wagmi";
 import { VerificationGate } from "@/components/VerificationGate";
+import { Metric } from "@/components/ui";
 import { hashscanTx } from "@/lib/chains";
 
 const initial = {
@@ -14,6 +15,16 @@ const initial = {
   appraisedValue: "400",
   hederaAccountId: "",
 };
+
+const fields = [
+  { k: "cropType", label: "Crop and variety", type: "text", wide: true },
+  { k: "grade", label: "Grade", type: "text" },
+  { k: "quantityKg", label: "Quantity in kg", type: "number" },
+  { k: "storageLocation", label: "Storage location", type: "text", wide: true },
+  { k: "appraisedValue", label: "Appraised value in gUSDC", type: "number" },
+  { k: "expiry", label: "Valid until", type: "date" },
+  { k: "hederaAccountId", label: "Hedera account id, for ATS", type: "text", wide: true },
+] as const;
 
 function Form() {
   const { address } = useAccount();
@@ -47,56 +58,61 @@ function Form() {
     }
   }
 
+  const kg = Number(form.quantityKg) || 0;
+
   return (
-    <form onSubmit={submit} className="card space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="label">Crop type</label>
-          <input className="input" value={form.cropType} onChange={set("cropType")} required />
-        </div>
-        <div>
-          <label className="label">Grade</label>
-          <input className="input" value={form.grade} onChange={set("grade")} required />
-        </div>
-        <div>
-          <label className="label">Quantity (kg)</label>
-          <input className="input" type="number" value={form.quantityKg} onChange={set("quantityKg")} required />
-        </div>
-        <div>
-          <label className="label">Appraised value (gUSDC)</label>
-          <input
-            className="input"
-            type="number"
-            value={form.appraisedValue}
-            onChange={set("appraisedValue")}
-            required
-          />
-        </div>
-        <div className="sm:col-span-2">
-          <label className="label">Storage location</label>
-          <input className="input" value={form.storageLocation} onChange={set("storageLocation")} required />
-        </div>
-        <div>
-          <label className="label">Expiry</label>
-          <input className="input" type="date" value={form.expiry} onChange={set("expiry")} required />
-        </div>
-        <div>
-          <label className="label">Hedera account id (for ATS)</label>
-          <input className="input" placeholder="0.0.123456" value={form.hederaAccountId} onChange={set("hederaAccountId")} />
-        </div>
+    <form onSubmit={submit} className="space-y-4">
+      {/* The quantity is the headline figure: the ATS security is issued with decimals
+          zero, so one share is one kilogram and the share count is the quantity. */}
+      <Metric
+        label="Quantity in kg, issued as that many shares at decimals 0"
+        value={kg.toLocaleString()}
+        tint
+      />
+
+      <div className="card grid gap-3 sm:grid-cols-2">
+        {fields.map((f) => (
+          <div key={f.k} className={"wide" in f && f.wide ? "sm:col-span-2" : undefined}>
+            <label className="label" htmlFor={f.k}>
+              {f.label}
+            </label>
+            <input
+              id={f.k}
+              className="input"
+              type={f.type}
+              value={form[f.k as keyof typeof initial]}
+              onChange={set(f.k as keyof typeof initial)}
+              placeholder={f.k === "hederaAccountId" ? "0.0.123456" : undefined}
+              required={f.k !== "hederaAccountId"}
+            />
+          </div>
+        ))}
       </div>
 
       <button className="btn w-full" disabled={busy}>
         {busy ? "Issuing on Hedera..." : "Tokenize receipt"}
       </button>
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-[13px] text-bad">{error}</p>}
 
       {result && (
-        <div className="space-y-1 rounded-lg border border-sprout/40 bg-sprout/5 p-4 text-sm">
-          <p className="font-medium text-sprout">Receipt #{result.tokenId} issued</p>
-          <p className="text-stone-400">ATS security token: {result.atsTokenId}</p>
-          <a className="text-grain underline" href={hashscanTx(result.txHash)} target="_blank" rel="noreferrer">
+        <div className="card space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="pill">Issued</span>
+            <span className="text-metric font-medium tabular-nums">
+              #{result.tokenId}
+            </span>
+          </div>
+          <div>
+            <p className="text-label text-muted">ATS security token</p>
+            <p className="fig mt-1 text-[14px]">{result.atsTokenId}</p>
+          </div>
+          <a
+            className="text-label text-muted underline-offset-4 hover:text-text hover:underline"
+            href={hashscanTx(result.txHash)}
+            target="_blank"
+            rel="noreferrer"
+          >
             View on HashScan
           </a>
         </div>
@@ -107,10 +123,10 @@ function Form() {
 
 export default function TokenizePage() {
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Tokenize your warehouse receipt</h1>
-        <p className="mt-2 text-sm text-stone-400">
+    <div className="space-y-8">
+      <header>
+        <h1 className="text-[26px] tracking-[-0.02em]">Tokenize your warehouse receipt</h1>
+        <p className="mt-2 text-[15px] leading-relaxed text-muted">
           The warehouse receipt exists as an Asset Tokenization Studio security token on
           Hedera - a real ERC-1400 instrument with an allowlist and controller powers,
           issued by the warehouse operator. This mints the EVM collateral record the vault
@@ -118,7 +134,7 @@ export default function TokenizePage() {
           without a verified nullifier onchain, KYC is never granted and nothing can be
           minted to you.
         </p>
-      </div>
+      </header>
       <VerificationGate>
         <Form />
       </VerificationGate>

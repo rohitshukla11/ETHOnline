@@ -83,10 +83,10 @@ export default function VerifyPage() {
   );
 
   return (
-    <div className="mx-auto max-w-xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">World ID verification</h1>
-        <p className="mt-2 text-sm text-stone-400">
+    <div className="space-y-8">
+      <header>
+        <h1 className="text-[26px] tracking-[-0.02em]">World ID verification</h1>
+        <p className="mt-2 text-[15px] leading-relaxed text-muted">
           Selfie Check binds this collateral claim to a liveness-verified person and
           makes repeated claims materially harder. The nullifier it produces is unique
           to you and this action; Godaam records it onchain and refuses a second
@@ -94,26 +94,31 @@ export default function VerifyPage() {
           verification, KYC is never granted and no warehouse receipt can be minted to
           you.
         </p>
-      </div>
+      </header>
 
       {isVerified ? (
-        <div className="card border-sprout/50">
-          <p className="font-medium text-sprout">Verified</p>
-          <p className="mt-1 text-sm text-stone-400">
-            {address} is cleared for receipt tokenization and borrowing.
+        <div className="card space-y-3">
+          <span className="pill">Verified</span>
+          <div>
+            <p className="text-label text-muted">Bound to</p>
+            <p className="fig mt-1 break-all text-[13px]">{address}</p>
+          </div>
+          <p className="text-[14px] text-muted">
+            Cleared for receipt tokenization and borrowing.
           </p>
         </div>
       ) : !isConnected ? (
-        <div className="card text-sm text-stone-400">Connect your wallet first.</div>
+        <p className="text-[14px] text-muted">Connect your wallet first.</p>
       ) : rpError ? (
-        <div className="card space-y-2 border-red-500/40">
-          <p className="font-medium text-red-400">World ID is not configured</p>
-          <p className="text-sm text-stone-400">{rpError}</p>
+        <div className="card space-y-3">
+          <span className="pill-bad">Not configured</span>
+          <p className="text-[14px] text-bad">{rpError}</p>
+          <p className="text-label text-muted">
+            The route refuses rather than minting an unsigned request.
+          </p>
         </div>
       ) : !rpContext ? (
-        <div className="card text-sm text-stone-400">
-          Preparing a signed proof request...
-        </div>
+        <p className="text-[14px] text-muted">Preparing a signed proof request...</p>
       ) : (
         <VerifyAction
           rpContext={rpContext}
@@ -126,7 +131,7 @@ export default function VerifyPage() {
 
       {txHash && (
         <a
-          className="block text-sm text-grain underline"
+          className="text-label text-muted underline-offset-4 hover:text-text hover:underline"
           href={hashscanTx(txHash)}
           target="_blank"
           rel="noreferrer"
@@ -178,7 +183,7 @@ function VerifyAction({
   }, [flow.isSuccess, flow.result, onComplete]);
 
   return (
-    <div className="card space-y-4">
+    <div className="card space-y-3">
       <button
         className="btn w-full"
         onClick={() => flow.open()}
@@ -190,15 +195,15 @@ function VerifyAction({
       </button>
 
       {flow.isError && flow.errorCode && (
-        <p className="text-sm text-red-400">
+        <p className="text-[13px] leading-relaxed text-bad">
           {flow.errorCode === "feature_unavailable" ||
           flow.errorCode === "credential_unavailable"
             ? "Selfie Check is not enabled for this app yet. Access is granted per app by World; the request is pending."
             : `World App returned: ${flow.errorCode}`}
         </p>
       )}
-      {status && <p className="text-sm text-stone-400">{status}</p>}
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {status && <p className="text-[13px] text-muted">{status}</p>}
+      {error && <p className="text-[13px] text-bad">{error}</p>}
     </div>
   );
 }

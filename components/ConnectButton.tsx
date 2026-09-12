@@ -32,7 +32,7 @@ export function ConnectButton() {
   // Server and first client render must agree; wallet detection is client-only.
   if (!mounted) {
     return (
-      <button className="btn" disabled>
+      <button className="btn-ghost" disabled>
         Connect Wallet
       </button>
     );
@@ -40,7 +40,7 @@ export function ConnectButton() {
 
   const err = connectError ?? switchError;
   const errLine = err ? (
-    <span className="max-w-[16rem] text-right text-xs text-red-400">
+    <span className="max-w-[16rem] text-right text-label text-bad">
       {err.name === "ProviderNotFoundError"
         ? "No wallet found. Install MetaMask, then reload."
         : (err as Error).message.slice(0, 120)}
@@ -55,7 +55,7 @@ export function ConnectButton() {
     if (available.length === 0) {
       return (
         <a
-          className="btn"
+          className="btn-ghost"
           href="https://metamask.io/download/"
           target="_blank"
           rel="noreferrer"
@@ -71,7 +71,7 @@ export function ConnectButton() {
         {available.map((c) => (
           <button
             key={c.uid}
-            className="btn"
+            className="btn-ghost"
             disabled={isPending}
             onClick={() => connect({ connector: c })}
           >
@@ -90,7 +90,7 @@ export function ConnectButton() {
     return (
       <div className="flex items-center gap-2">
         {errLine}
-        <button className="btn" onClick={() => switchChain({ chainId: hederaTestnet.id })}>
+        <button className="btn-ghost" onClick={() => switchChain({ chainId: hederaTestnet.id })}>
           Switch to Hedera Testnet
         </button>
       </div>
@@ -100,8 +100,16 @@ export function ConnectButton() {
   return (
     <div className="flex items-center gap-2">
       {errLine}
-      <button className="btn-ghost font-mono text-xs" onClick={() => disconnect()}>
-        {address?.slice(0, 6)}...{address?.slice(-4)}
+      <span className="chip">
+        <span className="fig">
+          {address?.slice(0, 6)}...{address?.slice(-4)}
+        </span>
+      </span>
+      <button
+        className="text-[13px] text-muted transition-colors hover:text-text"
+        onClick={() => disconnect()}
+      >
+        Disconnect
       </button>
     </div>
   );

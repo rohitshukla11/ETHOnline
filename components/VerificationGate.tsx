@@ -12,27 +12,24 @@ export function VerificationGate({ children }: { children: ReactNode }) {
   const { isConnected, isVerified, isLoading } = useVerification();
 
   if (!isConnected) {
-    return (
-      <div className="card text-center text-stone-400">
-        Connect your wallet to continue.
-      </div>
-    );
+    return <p className="text-[14px] text-muted">Connect your wallet to continue.</p>;
   }
 
   if (isLoading) {
-    return <div className="card text-center text-stone-400">Checking verification...</div>;
+    return <p className="text-[14px] text-muted">Checking verification...</p>;
   }
 
   if (!isVerified) {
     return (
-      <div className="card space-y-3 text-center">
-        <h3 className="text-lg font-semibold">World ID verification required</h3>
-        <p className="text-sm text-stone-400">
+      <div className="card space-y-3">
+        <span className="pill-bad">Refused</span>
+        <h3 className="text-[15px]">World ID verification required</h3>
+        <p className="text-[14px] leading-relaxed text-muted">
           Godaam issues undercollateralised credit, so a claim has to be tied to a
           verified person rather than a wallet. The World ID nullifier stored onchain
           enforces one claim per identity per action.
         </p>
-        <Link href="/verify" className="btn inline-block">
+        <Link href="/verify" className="btn">
           Verify with World ID
         </Link>
       </div>

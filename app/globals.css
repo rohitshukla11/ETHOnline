@@ -2,30 +2,150 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---------------------------------------------------------------------------
+   Tokens. Defined once, here. Dark is the only theme.
+   --------------------------------------------------------------------------- */
+
 :root {
   color-scheme: dark;
+
+  --bg: 11 11 13; /* #0B0B0D  page ground */
+  --surface: 20 20 22; /* #141416  cards, nav well */
+  --border: 31 31 35; /* #1F1F23  hairline on surfaces */
+  --border-strong: 42 42 48; /* #2A2A30  outlined chips and buttons */
+  --divider: 28 28 32; /* #1C1C20  header rule */
+
+  --text: 255 255 255; /* #FFFFFF  headings, figures */
+  --text-muted: 138 138 147; /* #8A8A93  labels, secondary copy */
+
+  --wheat: 223 182 92; /* #DFB65C  filled buttons, active nav, progress */
+  --wheat-on: 26 18 6; /* #1A1206  text on a wheat fill */
+  --wheat-tint: 26 23 14; /* #1A170E  tinted card fill */
+  --wheat-edge: 79 68 31; /* #4F441F  tinted card border */
+  --wheat-text: 242 221 163; /* #F2DDA3  figures inside a tinted card */
+
+  --good: 74 222 128; /* #4ADE80  status pill text */
+  --good-bg: 15 31 23; /* #0F1F17  status pill fill */
+  --good-edge: 27 61 42; /* #1B3D2A  status pill border */
+  --bad: 248 113 113; /* #F87171  provenance warnings, refusals, overdue */
+
+  /* Intermediate greys, used only by the inherited `stone` ramp. */
+  --s-50: 255 255 255;
+  --s-100: 242 242 244;
+  --s-200: 216 216 221;
+  --s-300: 180 180 188;
+  --s-500: 110 110 119;
+  --s-600: 85 85 92;
 }
 
 body {
-  @apply bg-soil text-stone-100 antialiased;
+  @apply bg-bg font-sans text-text antialiased;
+  font-weight: 400;
 }
 
+/* Two weights only. Nothing heavier than 500 anywhere. */
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 500;
+  text-wrap: balance;
+}
+
+/* ---------------------------------------------------------------------------
+   Surfaces and controls.
+   --------------------------------------------------------------------------- */
+
 .card {
-  @apply rounded-xl border border-stone-800 bg-stone-900/60 p-6;
+  @apply rounded-card border border-border bg-surface p-[17px];
+}
+
+/* The risk-score card. Tinted rather than filled, so the accent stays quiet. */
+.card-tint {
+  @apply rounded-card border border-wheat-edge bg-wheat-tint p-[17px];
 }
 
 .btn {
-  @apply rounded-lg bg-grain px-4 py-2 font-medium text-soil transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40;
+  @apply inline-flex items-center justify-center gap-2 rounded-pill bg-wheat px-5 py-2.5
+    text-[15px] font-medium text-wheat-on transition-colors
+    hover:bg-wheat/90 disabled:cursor-not-allowed disabled:bg-wheat/30
+    disabled:text-wheat-on/60;
 }
 
 .btn-ghost {
-  @apply rounded-lg border border-stone-700 px-4 py-2 font-medium text-stone-200 transition hover:border-stone-500 disabled:opacity-40;
+  @apply inline-flex items-center justify-center gap-2 rounded-pill border
+    border-border-strong bg-transparent px-5 py-2.5 text-[15px] font-medium text-text
+    transition-colors hover:border-muted hover:bg-surface
+    disabled:cursor-not-allowed disabled:text-muted;
 }
 
 .input {
-  @apply w-full rounded-lg border border-stone-700 bg-stone-950 px-3 py-2 text-sm outline-none focus:border-grain;
+  @apply w-full rounded-[10px] border border-border bg-surface px-3 py-2.5 text-[15px]
+    text-text outline-none transition-colors
+    placeholder:text-muted focus:border-wheat focus:ring-1 focus:ring-wheat;
 }
 
+/* Sentence case, never uppercase. */
 .label {
-  @apply mb-1 block text-xs uppercase tracking-wide text-stone-400;
+  @apply mb-1 block text-label font-normal text-muted;
+}
+
+.chip {
+  @apply inline-flex items-center gap-2 rounded-pill border border-border-strong
+    px-3.5 py-2 text-[13px] font-normal text-text transition-colors hover:border-muted;
+}
+
+/* Small green pill with a leading dot. */
+.pill {
+  @apply inline-flex items-center gap-2 rounded-pill border border-good-edge
+    bg-good-bg px-3 py-1 text-[13px] font-normal text-good;
+}
+
+.pill::before {
+  content: "";
+  @apply h-1.5 w-1.5 rounded-pill bg-good;
+}
+
+.pill-bad {
+  @apply inline-flex items-center gap-2 rounded-pill border border-bad/30
+    bg-bad/10 px-3 py-1 text-[13px] font-normal text-bad;
+}
+
+.pill-bad::before {
+  content: "";
+  @apply h-1.5 w-1.5 rounded-pill bg-bad;
+}
+
+/* Figures that must survive being read off a video frame. */
+.fig {
+  @apply font-mono tabular-nums;
+}
+
+.metric {
+  @apply text-metric font-medium tabular-nums text-text;
+}
+
+.focal {
+  @apply text-focal font-medium tabular-nums text-text;
+}
+
+/* ---------------------------------------------------------------------------
+   Accessibility floor.
+   --------------------------------------------------------------------------- */
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible {
+  @apply outline outline-2 outline-offset-2 outline-wheat;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

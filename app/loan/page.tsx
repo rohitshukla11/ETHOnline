@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 import { VerificationGate } from "@/components/VerificationGate";
+import { Metric, Provenance, Segments } from "@/components/ui";
 import { hashscanTx } from "@/lib/chains";
 import {
   addresses,
@@ -13,6 +14,12 @@ import {
   LOAN_STATUS,
 } from "@/lib/contracts";
 import { submitRiskInputs, type AssessmentResult } from "@/lib/cre";
+
+const ZERO_COMMITMENT =
+  "0x0000000000000000000000000000000000000000000000000000000000000000";
+
+/** The unit is stated once in the label, not repeated on every figure. */
+const bare = (v: bigint | undefined) => formatUsdc(v).replace(" gUSDC", "");
 
 function RiskForm({ loanId, collateralValue }: { loanId: bigint; collateralValue: bigint }) {
   const { address } = useAccount();
@@ -51,40 +58,85 @@ function RiskForm({ loanId, collateralValue }: { loanId: bigint; collateralValue
     }
   }
 
+  const simulated = result?.mode === "cre-simulation";
+
   return (
     <form onSubmit={submit} className="card space-y-4">
-      <div className="rounded-lg border border-stone-700 bg-stone-950 p-3 text-xs text-stone-400">
-        These three fields are encrypted to the Chainlink CRE enclave. They are not stored
-        by this app, not logged by the API route, and never written onchain. Only the score
-        band and the approved amount leave the TEE.
-      </div>
       <div>
-        <label className="label">Land record reference</label>
-        <input className="input" value={landRecordRef} onChange={(e) => setLandRecordRef(e.target.value)} />
+        <h2 className="text-[15px]">Confidential underwriting</h2>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
+          These three fields are encrypted to the Chainlink CRE enclave. They are not
+          stored by this app, not logged by the API route, and never written onchain.
+          Only the score band and the approved amount leave the TEE.
+        </p>
       </div>
-      <div>
-        <label className="label">Past yields (kg/ha, comma separated)</label>
-        <input className="input" value={yields} onChange={(e) => setYields(e.target.value)} />
+
+      <div className="space-y-3">
+        <div>
+          <label className="label" htmlFor="land-record">
+            Land record reference
+          </label>
+          <input
+            id="land-record"
+            className="input"
+            value={landRecordRef}
+            onChange={(e) => setLandRecordRef(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="label" htmlFor="past-yields">
+            Past yields, kg per hectare
+          </label>
+          <input
+            id="past-yields"
+            className="input"
+            value={yields}
+            onChange={(e) => setYields(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="label" htmlFor="repayment-history">
+            Repayment history, lender:amount:daysLate
+          </label>
+          <input
+            id="repayment-history"
+            className="input"
+            value={history}
+            onChange={(e) => setHistory(e.target.value)}
+          />
+        </div>
       </div>
-      <div>
-        <label className="label">Repayment history (lender:amount:daysLate)</label>
-        <input className="input" value={history} onChange={(e) => setHistory(e.target.value)} />
-      </div>
+
       <button className="btn w-full" disabled={busy}>
         {busy ? "Scoring inside the enclave..." : "Submit for confidential underwriting"}
       </button>
-      {error && <p className="text-sm text-red-400">{error}</p>}
+
+      {error && <p className="text-[13px] text-bad">{error}</p>}
+
       {result && (
-        <div className="space-y-1 rounded-lg border border-grain/40 bg-grain/5 p-4 text-sm">
-          <p className="font-medium text-grain">
-            {result.approved ? "Approved" : "Declined"} · score {result.riskScore}/1000 ·{" "}
-            {result.mode}
-          </p>
-          <p className="text-stone-400">
-            LTV {result.ltvBps / 100}% · APR {result.aprBps / 100}% ·{" "}
-            {formatUsdc(BigInt(result.approvedPrincipal))} disbursed against{" "}
-            {formatUsdc(collateralValue)} of grain
-          </p>
+        <div className="space-y-3 border-t border-border pt-4">
+          <div className="flex items-center justify-between gap-3">
+            <span className={result.approved ? "pill" : "pill-bad"}>
+              {result.approved ? "Approved" : "Declined"}
+            </span>
+            <span className="metric">{result.riskScore}</span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Metric
+              label="Loan to value"
+              value={`${result.ltvBps / 100}%`}
+            />
+            <Metric label="Disbursed" value={bare(BigInt(result.approvedPrincipal))} />
+          </div>
+          <Provenance
+            label="LTV decided by:"
+            source={
+              simulated
+                ? "CRE simulation, not a live enclave"
+                : "Chainlink CRE confidential workflow"
+            }
+            degraded={simulated}
+          />
         </div>
       )}
     </form>
@@ -130,6 +182,15 @@ function LoanCard({
     args: [loanId],
     query: { refetchInterval: 5000 },
   });
+  // Crop, grade and quantity for the receipt line. Read-only and non-blocking: if it
+  // is unavailable the line falls back to the receipt id alone.
+  const { data: receipt } = useReadContract({
+    address: addresses.warehouseReceipt,
+    abi: warehouseReceiptAbi,
+    functionName: "receiptOf",
+    args: loan ? [loan.receiptId] : undefined,
+    query: { enabled: Boolean(loan) },
+  });
 
   // The vault numbers loans globally, so iterating 1..nextLoanId surfaces every borrower's
   // loan. Only render the connected farmer's own, and tell the parent either way so it can
@@ -146,125 +207,170 @@ function LoanCard({
   const status = LOAN_STATUS[Number(loan.status)] ?? "Unknown";
   const active = status === "Active";
 
+  // A non-zero commitment means the terms came back through the confidential assessment
+  // path. A zero one means they did not, and that is the difference between a TEE output
+  // and a number somebody typed.
+  const attested = loan.privateInputCommitment !== ZERO_COMMITMENT;
+  const overdue = Boolean(nextDue) && Date.now() / 1000 > Number(nextDue);
+  const outstanding = loan.totalOwed - loan.repaid;
+
   return (
-    <div className="card space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold">Loan #{loanId.toString()}</h3>
-        <span
-          className={`rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wider ${
-            status === "Liquidated"
-              ? "bg-red-500/20 text-red-300"
-              : status === "Repaid"
-                ? "bg-sprout/20 text-sprout"
-                : "bg-stone-800 text-stone-300"
-          }`}
-        >
-          {status}
-        </span>
+    <article className="space-y-3">
+      {/* The position, stated as a sentence. */}
+      <div>
+        <h2 className="focal">
+          Borrowed {bare(loan.principal)} against {bare(loan.collateralValue)}
+        </h2>
+        <p className="mt-1.5 text-[14px] text-muted">
+          Receipt #{loan.receiptId.toString()}
+          {receipt
+            ? ` · ${Number(receipt.quantityKg).toLocaleString()} kg ${receipt.cropType}, grade ${receipt.grade}`
+            : ""}{" "}
+          · gUSDC
+        </p>
       </div>
 
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-stone-400">
-        <dt>Collateral</dt>
-        <dd className="text-right text-stone-200">{formatUsdc(loan.collateralValue)}</dd>
-        <dt>Principal</dt>
-        <dd className="text-right text-stone-200">{formatUsdc(loan.principal)}</dd>
-        <dt>LTV / APR</dt>
-        <dd className="text-right text-stone-200">
-          {loan.ltvBps / 100}% / {loan.aprBps / 100}%
-        </dd>
-        <dt>Confidential score</dt>
-        <dd className="text-right text-stone-200">{loan.riskScore}/1000</dd>
-        <dt>Repaid</dt>
-        <dd className="text-right text-stone-200">
-          {formatUsdc(loan.repaid)} of {formatUsdc(loan.totalOwed)} ({loan.installmentsPaid}/
-          {loan.installmentCount})
-        </dd>
-        {active && (
-          <>
-            <dt>Next due</dt>
-            <dd className="text-right text-stone-200">
-              {nextDue ? new Date(Number(nextDue) * 1000).toLocaleDateString() : "-"}
-            </dd>
-          </>
-        )}
-      </dl>
+      <div className="flex items-center gap-2">
+        <span className={status === "Liquidated" ? "pill-bad" : "pill"}>{status}</span>
+        {overdue && active && <span className="pill-bad">Overdue</span>}
+      </div>
 
-      {loan.privateInputCommitment !==
-        "0x0000000000000000000000000000000000000000000000000000000000000000" && (
-        <p className="break-all font-mono text-[10px] text-stone-600">
-          TEE input commitment {loan.privateInputCommitment}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Metric label="Risk score" value={`${loan.riskScore}`} tint />
+        <Metric label="Interest rate" value={`${loan.aprBps / 100}%`} />
+        <Metric label="Outstanding" value={bare(outstanding)} />
+      </div>
+
+      <div className="card space-y-2.5">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="text-label text-muted">Loan to value</p>
+          <p className="text-metric font-medium tabular-nums">{loan.ltvBps / 100}%</p>
+        </div>
+        {/* Scaled against the 220% ceiling in 20-point steps, so the bar actually
+            says where this loan sits. A bar that is always full says nothing. */}
+        <Segments
+          total={11}
+          filled={Math.min(Math.round(Number(loan.ltvBps) / 100 / 20), 11)}
+        />
+        <p className="text-label text-muted">Against a 220% ceiling</p>
+        <Provenance
+          label="LTV decided by:"
+          source={
+            attested
+              ? "Chainlink CRE confidential workflow, commitment recorded onchain"
+              : "hand-encoded, no TEE commitment onchain"
+          }
+          degraded={!attested}
+        />
+      </div>
+
+      <div className="card space-y-3">
+        <div>
+          <p className="text-label text-muted">
+            {overdue ? "Payment overdue" : "Next installment"}
+          </p>
+          <p className={`mt-1 text-focal font-medium tabular-nums ${overdue ? "text-bad" : ""}`}>
+            {bare(due)}
+          </p>
+        </div>
+        <Segments total={Number(loan.installmentCount)} filled={Number(loan.installmentsPaid)} />
+        <p className="text-label text-muted">
+          {loan.installmentsPaid} of {loan.installmentCount} paid · {bare(loan.repaid)} of{" "}
+          {bare(loan.totalOwed)}
         </p>
-      )}
 
-      {active && (
-        <div className="flex flex-wrap gap-2">
-          <button
-            className="btn"
-            disabled={isPending || confirming}
-            onClick={() =>
-              writeContract({
-                address: addresses.mockUsdc,
-                abi: erc20Abi,
-                functionName: "approve",
-                args: [addresses.godaamVault, loan.totalOwed],
-              })
-            }
-          >
-            Approve gUSDC
-          </button>
-          <button
-            className="btn"
-            disabled={isPending || confirming || !due}
-            onClick={() =>
-              writeContract({
-                address: addresses.godaamVault,
-                abi: godaamVaultAbi,
-                functionName: "repayInstallment",
-                args: [loanId],
-              })
-            }
-          >
-            Pay installment ({formatUsdc(due)})
-          </button>
-          <button
-            className="btn-ghost"
-            disabled={isPending || confirming}
-            onClick={() =>
-              writeContract({
-                address: addresses.godaamVault,
-                abi: godaamVaultAbi,
-                functionName: "repayFull",
-                args: [loanId],
-              })
-            }
-          >
-            Repay in full
-          </button>
-          {liquidatable && (
+        {active && (
+          <div className="space-y-2 pt-1">
             <button
-              className="rounded-lg bg-red-500 px-4 py-2 font-medium text-white"
-              disabled={isPending || confirming}
+              className="btn w-full"
+              disabled={isPending || confirming || !due}
               onClick={() =>
                 writeContract({
                   address: addresses.godaamVault,
                   abi: godaamVaultAbi,
-                  functionName: "liquidate",
+                  functionName: "repayInstallment",
                   args: [loanId],
                 })
               }
             >
-              Liquidate (defaulted)
+              Pay installment
             </button>
-          )}
-        </div>
-      )}
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="btn-ghost flex-1"
+                disabled={isPending || confirming}
+                onClick={() =>
+                  writeContract({
+                    address: addresses.mockUsdc,
+                    abi: erc20Abi,
+                    functionName: "approve",
+                    args: [addresses.godaamVault, loan.totalOwed],
+                  })
+                }
+              >
+                Approve gUSDC
+              </button>
+              <button
+                className="btn-ghost flex-1"
+                disabled={isPending || confirming}
+                onClick={() =>
+                  writeContract({
+                    address: addresses.godaamVault,
+                    abi: godaamVaultAbi,
+                    functionName: "repayFull",
+                    args: [loanId],
+                  })
+                }
+              >
+                Repay in full
+              </button>
+            </div>
+            {liquidatable && (
+              <button
+                className="w-full rounded-pill border border-bad/40 bg-bad/10 px-5 py-2.5
+                  text-[15px] font-medium text-bad transition-colors hover:bg-bad/20"
+                disabled={isPending || confirming}
+                onClick={() =>
+                  writeContract({
+                    address: addresses.godaamVault,
+                    abi: godaamVaultAbi,
+                    functionName: "liquidate",
+                    args: [loanId],
+                  })
+                }
+              >
+                Liquidate (defaulted)
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
-      {hash && (
-        <a className="text-xs text-grain underline" href={hashscanTx(hash)} target="_blank" rel="noreferrer">
-          Latest tx on HashScan
-        </a>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <p className="text-label text-muted">
+          {nextDue
+            ? `${overdue ? "Was due" : "Next due"} ${new Date(Number(nextDue) * 1000).toLocaleDateString()}`
+            : "No schedule"}{" "}
+          · Outstanding {bare(outstanding)}
+        </p>
+        {hash && (
+          <a
+            className="text-label text-muted underline-offset-4 hover:text-text hover:underline"
+            href={hashscanTx(hash)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Latest transaction
+          </a>
+        )}
+      </div>
+
+      {attested && (
+        <p className="fig break-all text-[11px] text-muted">
+          TEE input commitment {loan.privateInputCommitment}
+        </p>
       )}
-    </div>
+    </article>
   );
 }
 
@@ -293,8 +399,8 @@ function GusdcBalance() {
   return (
     <div className="card flex flex-wrap items-center justify-between gap-3">
       <div>
-        <p className="text-sm text-stone-400">Your balance</p>
-        <p className="font-mono text-lg text-stone-100">{formatUsdc(balance)}</p>
+        <p className="text-label text-muted">Your balance</p>
+        <p className="mt-1 text-metric font-medium tabular-nums">{bare(balance)} gUSDC</p>
       </div>
       <button
         className="btn-ghost whitespace-nowrap"
@@ -314,7 +420,6 @@ function GusdcBalance() {
 }
 
 function LoanWorkspace() {
-  const { address } = useAccount();
   const [receiptId, setReceiptId] = useState("1");
   const { writeContract, data: hash, isPending } = useWriteContract();
   const { isLoading: confirming } = useWaitForTransactionReceipt({ hash });
@@ -359,89 +464,94 @@ function LoanWorkspace() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <GusdcBalance />
 
-      <div className="card space-y-4">
-        <h2 className="font-semibold">1. Pledge a receipt</h2>
-        <div className="flex gap-2">
+      <section className="card space-y-3">
+        <div>
+          <h2 className="text-[15px]">Pledge a receipt</h2>
+          <p className="mt-1.5 text-[13px] text-muted">
+            Pledging freezes the receipt inside the vault.
+          </p>
+        </div>
+        <div>
+          <label className="label" htmlFor="receipt-id">
+            Receipt token id
+          </label>
           <input
+            id="receipt-id"
             className="input"
             value={receiptId}
             onChange={(e) => setReceiptId(e.target.value)}
-            placeholder="Receipt token id"
+            placeholder="1"
           />
-          <button
-            className="btn-ghost whitespace-nowrap"
-            disabled={isPending || confirming}
-            onClick={() =>
-              writeContract({
-                address: addresses.warehouseReceipt,
-                abi: warehouseReceiptAbi,
-                functionName: "setApprovalForAll",
-                args: [addresses.godaamVault, true],
-              })
-            }
-          >
-            Approve vault
-          </button>
-          <button
-            className="btn whitespace-nowrap"
-            disabled={isPending || confirming || !receiptId}
-            onClick={() =>
-              writeContract({
-                address: addresses.godaamVault,
-                abi: godaamVaultAbi,
-                functionName: "requestLoan",
-                args: [BigInt(receiptId)],
-              })
-            }
-          >
-            Request loan
-          </button>
         </div>
         {collateralValue !== undefined && (
-          <p className="text-sm text-stone-400">
-            Appraised collateral: {formatUsdc(collateralValue)}
+          <p className="text-label text-muted">
+            Appraised collateral {bare(collateralValue)} gUSDC, set by the warehouse
+            operator
           </p>
         )}
-      </div>
+        <button
+          className="btn w-full"
+          disabled={isPending || confirming || !receiptId}
+          onClick={() =>
+            writeContract({
+              address: addresses.godaamVault,
+              abi: godaamVaultAbi,
+              functionName: "requestLoan",
+              args: [BigInt(receiptId)],
+            })
+          }
+        >
+          Request loan
+        </button>
+        <button
+          className="btn-ghost w-full"
+          disabled={isPending || confirming}
+          onClick={() =>
+            writeContract({
+              address: addresses.warehouseReceipt,
+              abi: warehouseReceiptAbi,
+              functionName: "setApprovalForAll",
+              args: [addresses.godaamVault, true],
+            })
+          }
+        >
+          Approve vault
+        </button>
+      </section>
 
       {activeLoan !== undefined && activeLoan > 0n && collateralValue !== undefined && (
-        <div className="space-y-2">
-          <h2 className="font-semibold">2. Confidential underwriting</h2>
-          <RiskForm loanId={activeLoan} collateralValue={collateralValue} />
-        </div>
+        <RiskForm loanId={activeLoan} collateralValue={collateralValue} />
       )}
 
-      <div className="space-y-2">
-        <h2 className="font-semibold">3. Your loans</h2>
+      <section className="space-y-4">
+        <h2 className="text-[19px]">Your loans</h2>
         {myLoanIds.size === 0 && (
-          <p className="text-sm text-stone-500">
+          <p className="text-[14px] text-muted">
             No loans yet. Pledge a receipt above to open one.
           </p>
         )}
-        <div className="grid gap-4">
-          {loanIds.map((id) => (
-            <LoanCard key={id.toString()} loanId={id} onOwnership={onOwnership} />
-          ))}
-        </div>
-      </div>
+        {loanIds.map((id) => (
+          <LoanCard key={id.toString()} loanId={id} onOwnership={onOwnership} />
+        ))}
+      </section>
     </div>
   );
 }
 
 export default function LoanPage() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Borrow against your grain</h1>
-        <p className="mt-2 text-sm text-stone-400">
+    <div className="space-y-8">
+      <header>
+        <h1 className="text-[26px] tracking-[-0.02em]">Borrow against your grain</h1>
+        <p className="mt-2 text-[15px] leading-relaxed text-muted">
           Pledging freezes the receipt inside the vault. The Chainlink CRE Confidential
           Workflow then decides how much you can borrow - often more than the grain is
           worth - based on data that stays inside the enclave.
         </p>
-      </div>
+      </header>
       <VerificationGate>
         <LoanWorkspace />
       </VerificationGate>
