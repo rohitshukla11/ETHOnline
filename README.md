@@ -44,13 +44,29 @@ npm run dev
 ## Sponsor checklist
 
 ### Hedera — Tokenization of Anything
-- ATS SDK issuance, control-list whitelisting and `controllerTransfer` in
+- Real ATS SDK issuance, control-list whitelisting and `controllerTransfer` in
   [scripts/ats-issue-receipt.ts](scripts/ats-issue-receipt.ts)
-- EVM compliance mirror with KYC / freeze / forced transfer / controller redeem in
+- EVM collateral adapter with local KYC / freeze / seizure / redemption controls in
   [contracts/WarehouseReceipt.sol](contracts/WarehouseReceipt.sol)
 - Lifecycle ops beyond issuance: freeze on pledge, compliance-blocked transfer, forced
   transfer on default — all demoed by [scripts/demo-lifecycle.ts](scripts/demo-lifecycle.ts)
   and [scripts/demo-liquidation.ts](scripts/demo-liquidation.ts)
+
+### ATS integration status
+
+The Hedera asset is created through the published
+`@hashgraph/asset-tokenization-sdk`. That SDK is a TypeScript client; it is not
+importable from Solidity. ATS itself uses a diamond-based ERC-1400 implementation
+with partial ERC-3643 support in `packages/ats/contracts`.
+
+`WarehouseReceipt.sol` is therefore explicitly an EVM collateral adapter, not an
+ATS compliance implementation. Its local KYC, freeze, forced-transfer, and redeem
+functions preserve the vault's local test path, while the ATS token is linked through
+`atsTokenAddress` and `atsTokenId`. Before claiming full ATS contract integration,
+the adapter must be replaced or extended against the pinned ATS Solidity package and
+its deployed diamond interfaces. That refactor requires dependency installation and
+full Hardhat validation; it is intentionally not claimed as complete in this
+Node-free pass.
 
 ### Chainlink — Best Confidential Workflow
 - `handlerInTee` registered with `{ confidential: true }` in

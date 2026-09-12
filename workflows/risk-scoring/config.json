@@ -1,0 +1,10 @@
+{
+  "schedule": "",
+  "workflowName": "godaam-risk-scoring",
+  "vaultUrl": "http://localhost:8080",
+  "chainSelector": "hedera-testnet",
+  "godaamVaultAddress": "0x0000000000000000000000000000000000000000",
+  "riskApiUrl": "https://godaam-risk-oracle.local/v1/bureau",
+  "minScoreToApprove": 420,
+  "protocolMaxLtvBps": 25000
+}

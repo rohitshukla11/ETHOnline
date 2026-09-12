@@ -1,0 +1,13 @@
+{
+  "loanId": 1,
+  "borrower": "0x1111111111111111111111111111111111111111",
+  "collateralValue": "400000000",
+  "landRecordRef": "MH-PUN-0421/2A",
+  "pastYieldsKgPerHa": [3120, 2980, 3240, 3050, 3190],
+  "repaymentHistory": [
+    { "lender": "PACS-Baramati", "amount": 120000, "daysLate": 0 },
+    { "lender": "SBI-KCC", "amount": 240000, "daysLate": 12 },
+    { "lender": "NABARD-SHG", "amount": 80000, "daysLate": 0 }
+  ],
+  "aadhaarLast4": "4417"
+}

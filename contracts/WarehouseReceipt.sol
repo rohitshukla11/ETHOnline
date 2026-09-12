@@ -6,12 +6,12 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {WorldIdRegistry} from "./WorldIdRegistry.sol";
 
 /// @title WarehouseReceipt
-/// @notice EVM-side compliance mirror of the Hedera Asset Tokenization Studio (ATS)
-///         security token that represents a certified warehouse receipt.
-/// @dev Mirrors the ATS control surface (KYC grant, freeze, controller/forced transfer,
-///      controller redeem) so the lending vault can enforce the same compliance rules
-///      atomically inside a transaction. `atsTokenAddress` links each receipt back to the
-///      real ATS-issued asset on Hedera.
+/// @notice EVM collateral adapter for a warehouse receipt issued by Hedera ATS.
+/// @dev This contract is not an ATS contract and does not implement ATS compliance.
+///      The real ERC-1400/partial ERC-3643 security token is created and controlled by
+///      the ATS SDK in `scripts/ats-issue-receipt.ts`; `atsTokenAddress` and `atsTokenId`
+///      link this local collateral record to that Hedera asset. The local controls remain
+///      necessary for the EVM vault until the ATS Solidity contracts are integrated here.
 contract WarehouseReceipt is ERC721, AccessControl {
     bytes32 public constant ISSUER_ROLE = keccak256("ISSUER_ROLE");
     bytes32 public constant CONTROLLER_ROLE = keccak256("CONTROLLER_ROLE");
@@ -58,7 +58,7 @@ contract WarehouseReceipt is ERC721, AccessControl {
     }
 
     // ------------------------------------------------------------------
-    // Compliance controls (ATS parity)
+    // Local collateral controls; these are not replacements for ATS controls.
     // ------------------------------------------------------------------
 
     /// @notice Grant KYC. Only possible for an address that passed World ID Selfie Check.
@@ -97,7 +97,7 @@ contract WarehouseReceipt is ERC721, AccessControl {
         emit ReceiptIssued(tokenId, to, data.atsTokenId, data.appraisedValue);
     }
 
-    /// @notice ATS `controllerTransfer` equivalent - bypasses freezes, used for liquidation.
+    /// @notice Local collateral seizure used by the vault during liquidation.
     function forcedTransfer(uint256 tokenId, address to, string calldata reason)
         external
         onlyRole(CONTROLLER_ROLE)
@@ -109,7 +109,7 @@ contract WarehouseReceipt is ERC721, AccessControl {
         emit ForcedTransfer(tokenId, from, to, reason);
     }
 
-    /// @notice ATS `controllerRedeem` equivalent - burns a defaulted or expired receipt.
+    /// @notice Local collateral record redemption after default or expiry.
     function controllerRedeem(uint256 tokenId, string calldata reason) external onlyRole(CONTROLLER_ROLE) {
         address from = ownerOf(tokenId);
         _forced = true;

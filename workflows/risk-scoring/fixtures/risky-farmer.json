@@ -1,0 +1,11 @@
+{
+  "loanId": 2,
+  "borrower": "0x2222222222222222222222222222222222222222",
+  "collateralValue": "400000000",
+  "landRecordRef": "unregistered-plot",
+  "pastYieldsKgPerHa": [3100, 900, 4200, 1100, 3800],
+  "repaymentHistory": [
+    { "lender": "MFI-Local", "amount": 150000, "daysLate": 140 },
+    { "lender": "PACS-Baramati", "amount": 90000, "daysLate": 95 }
+  ]
+}
