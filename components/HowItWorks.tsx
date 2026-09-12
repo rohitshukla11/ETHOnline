@@ -11,9 +11,8 @@ import { Fragment, useState } from "react";
  * dependency days before filming buys nothing.
  */
 const artProps = {
-  width: 112,
-  height: 112,
   viewBox: "0 0 112 112",
+  className: "h-[124px] w-[124px] shrink-0 sm:h-[152px] sm:w-[152px]",
   fill: "none",
   strokeWidth: 2,
   strokeLinecap: "round" as const,
@@ -121,12 +120,12 @@ export function HowItWorks() {
   const last = active === steps.length - 1;
 
   return (
-    <section id="how-it-works" className="mx-auto max-w-[720px] scroll-mt-8 pb-10">
+    <section id="how-it-works" className="mx-auto max-w-[960px] scroll-mt-8 pb-14">
       {/* Heading shares the panel's left edge - both sit directly in this container
           with no extra inset. */}
-      <h2 className="text-[20px]">How it works</h2>
+      <h2 className="text-[24px] sm:text-[28px]">How it works</h2>
 
-      <div className="mt-6 flex items-center">
+      <div className="mt-8 flex items-center sm:mt-10">
         {steps.map((s, i) => (
           <Fragment key={s.title}>
             {i > 0 && <span className="h-px flex-1 bg-connector" aria-hidden="true" />}
@@ -135,8 +134,9 @@ export function HowItWorks() {
               onClick={() => setActive(i)}
               aria-label={`Step ${i + 1}: ${s.title.toLowerCase()}`}
               aria-current={i === active ? "step" : undefined}
-              className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center
-                rounded-pill text-[14px] tabular-nums transition-colors ${
+              className={`flex h-[38px] w-[38px] shrink-0 items-center justify-center
+                rounded-pill text-[15px] tabular-nums transition-colors
+                sm:h-[44px] sm:w-[44px] sm:text-[16px] ${
                   i === active
                     ? "bg-wheat font-medium text-wheat-on"
                     : "border border-border-strong text-muted hover:text-text"
@@ -150,35 +150,39 @@ export function HowItWorks() {
 
       <div
         aria-live="polite"
-        className="mt-6 min-h-[172px] rounded-card border border-border bg-surface p-5"
+        className="mt-7 min-h-[200px] rounded-card border border-border bg-surface p-6
+          sm:mt-8 sm:min-h-[216px] sm:p-8"
       >
         <div
           key={active}
-          className="hiw-panel flex flex-col items-center gap-5 min-[520px]:flex-row min-[520px]:items-start"
+          className="hiw-panel flex flex-col items-center gap-6 min-[520px]:flex-row
+            min-[520px]:items-start sm:gap-9"
         >
           <div className="shrink-0">{step.art}</div>
           <div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <h3 className="text-[17px]">{step.title}</h3>
+              <h3 className="text-[19px] sm:text-[22px]">{step.title}</h3>
               <span
-                className="rounded-pill border border-wheat-edge bg-wheat-tint px-2.5
-                  py-0.5 text-[11px] text-wheat"
+                className="rounded-pill border border-wheat-edge bg-wheat-tint px-3
+                  py-0.5 text-[12px] text-wheat"
               >
                 {step.tag}
               </span>
             </div>
-            <p className="mt-2 text-[14px] leading-relaxed text-muted">{step.body}</p>
+            <p className="mt-3 max-w-[620px] text-[15px] leading-relaxed text-muted sm:text-[16px]">
+              {step.body}
+            </p>
           </div>
         </div>
       </div>
 
-      <div className="mt-5 flex items-center justify-between gap-4">
-        <p className="text-[14px] text-muted">
+      <div className="mt-6 flex items-center justify-between gap-4 sm:mt-7">
+        <p className="text-[15px] text-muted">
           Step {active + 1} of {steps.length}
         </p>
         <button
           type="button"
-          className="btn"
+          className="btn px-6 py-3 text-[16px]"
           onClick={() => setActive((i) => (i + 1) % steps.length)}
         >
           {last ? "Start over" : "Next step"}
