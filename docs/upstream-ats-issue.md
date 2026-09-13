@@ -1,8 +1,7 @@
 # Upstream issue for `hashgraph/asset-tokenization-studio`
 
-**Status: written, not yet filed.** Filing needs a GitHub account — paste the body below
-at https://github.com/hashgraph/asset-tokenization-studio/issues/new, then replace this
-note and the README link with the issue URL.
+**Status: filed as [hashgraph/asset-tokenization-studio#1406](https://github.com/hashgraph/asset-tokenization-studio/issues/1406).** The body below is
+what was submitted, kept here so the reproduction stays with the repo.
 
 Both bugs reproduce from a clean clone on Node 20.17.0 / npm 10.8.2 / macOS arm64, and
 together they stop `npm install` before a single file compiles.

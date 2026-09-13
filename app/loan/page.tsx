@@ -1,24 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
-import { LoanPosition } from "@/components/LoanPosition";
+import { GusdcBalance } from "@/components/GusdcBalance";
+import { ReceiptCard, useMyReceipts } from "@/components/ReceiptPicker";
 import { VerificationGate } from "@/components/VerificationGate";
-import { Metric, Provenance, Segments } from "@/components/ui";
-import { hashscanTx } from "@/lib/chains";
+import { Metric, Provenance } from "@/components/ui";
 import {
   addresses,
-  erc20Abi,
   formatUsdc,
   godaamVaultAbi,
   warehouseReceiptAbi,
-  LOAN_STATUS,
 } from "@/lib/contracts";
 import { submitRiskInputs, type AssessmentResult } from "@/lib/cre";
-
-const ZERO_COMMITMENT =
-  "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 /** The unit is stated once in the label, not repeated on every figure. */
 const bare = (v: bigint | undefined) => formatUsdc(v).replace(" gUSDC", "");
@@ -150,206 +145,144 @@ function RiskForm({ loanId, collateralValue }: { loanId: bigint; collateralValue
   );
 }
 
-/** The ledger renders the shared position component; `/loan/[id]` renders the same one
- *  read-only. One component means the provenance rules cannot drift between them. */
-function LoanCard(props: {
-  loanId: bigint;
-  onOwnership: (loanId: bigint, isMine: boolean) => void;
-}) {
-  return <LoanPosition {...props} />;
-}
-
-
-/**
- * Installments total more than the principal, so a farmer who only ever received the
- * disbursement cannot finish repaying. MockUSDC.faucet() mints 5,000 gUSDC once a day on
- * testnet; without a button for it the demo dead-ends on the first installment.
- */
-function GusdcBalance() {
-  const { address } = useAccount();
-  const { writeContract, data: hash, isPending } = useWriteContract();
-  const { isLoading: confirming } = useWaitForTransactionReceipt({ hash });
-
-  const { data: balance, refetch } = useReadContract({
-    address: addresses.mockUsdc,
-    abi: erc20Abi,
-    functionName: "balanceOf",
-    args: address ? [address] : undefined,
-    query: { enabled: Boolean(address), refetchInterval: 5000 },
-  });
-
-  useEffect(() => {
-    if (!confirming && hash) void refetch();
-  }, [confirming, hash, refetch]);
-
+function Term({ k, v }: { k: string; v: React.ReactNode }) {
   return (
-    <div className="card flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <p className="text-label text-muted">Your balance</p>
-        <p className="mt-1 text-metric font-medium tabular-nums">{bare(balance)} gUSDC</p>
-      </div>
-      <button
-        className="btn-ghost whitespace-nowrap"
-        disabled={isPending || confirming}
-        onClick={() =>
-          writeContract({
-            address: addresses.mockUsdc,
-            abi: erc20Abi,
-            functionName: "faucet",
-          })
-        }
-      >
-        {isPending || confirming ? "Claiming..." : "Get 5,000 test gUSDC"}
-      </button>
+    <div className="flex items-baseline justify-between gap-4 py-1.5">
+      <dt className="text-[14px] text-muted">{k}</dt>
+      <dd className="fig text-[14px] text-text">{v}</dd>
     </div>
   );
 }
 
-function LoanWorkspace() {
-  const [receiptId, setReceiptId] = useState("1");
+function BorrowWorkspace() {
+  const { address } = useAccount();
+  const { receipts, isLoading } = useMyReceipts();
+  const [selected, setSelected] = useState<bigint | null>(null);
   const { writeContract, data: hash, isPending } = useWriteContract();
   const { isLoading: confirming } = useWaitForTransactionReceipt({ hash });
 
-  const { data: nextLoanId } = useReadContract({
-    address: addresses.godaamVault,
-    abi: godaamVaultAbi,
-    functionName: "nextLoanId",
-    query: { refetchInterval: 5000 },
+  const pledgeable = receipts.filter((r) => r.activeLoanId === 0n);
+  // Default to the first pledgeable receipt so the panel is never empty-handed.
+  useEffect(() => {
+    if (selected === null && pledgeable.length > 0) setSelected(pledgeable[0].id);
+  }, [selected, pledgeable]);
+
+  const active = receipts.find((r) => r.id === selected) ?? null;
+
+  const { data: approved } = useReadContract({
+    address: addresses.warehouseReceipt,
+    abi: warehouseReceiptAbi,
+    functionName: "isApprovedForAll",
+    args: address ? [address, addresses.godaamVault] : undefined,
+    query: { enabled: Boolean(address), refetchInterval: 5000 },
   });
 
-  const { data: activeLoan } = useReadContract({
+  const { data: openedLoanId } = useReadContract({
     address: addresses.godaamVault,
     abi: godaamVaultAbi,
     functionName: "activeLoanOfReceipt",
-    args: [BigInt(receiptId || "0")],
-    query: { enabled: Boolean(receiptId) },
+    args: selected !== null ? [selected] : undefined,
+    query: { enabled: selected !== null, refetchInterval: 5000 },
   });
 
-  const { data: collateralValue } = useReadContract({
-    address: addresses.warehouseReceipt,
-    abi: warehouseReceiptAbi,
-    functionName: "appraisedValueOf",
-    args: [BigInt(receiptId || "0")],
-    query: { enabled: Boolean(receiptId) },
-  });
-
-  const loanIds = nextLoanId
-    ? Array.from({ length: Number(nextLoanId) - 1 }, (_, i) => BigInt(i + 1))
-    : [];
-
-  const [myLoanIds, setMyLoanIds] = useState<Set<string>>(new Set());
-  const onOwnership = useCallback((id: bigint, isMine: boolean) => {
-    setMyLoanIds((prev) => {
-      const key = id.toString();
-      if (prev.has(key) === isMine) return prev;
-      const next = new Set(prev);
-      if (isMine) next.add(key);
-      else next.delete(key);
-      return next;
-    });
-  }, []);
+  const collateral = active?.appraised ?? 0n;
+  // 25000 bps is what GodaamVault.onReport enforces; this is the ceiling, not a promise.
+  const maxPrincipal = (collateral * 25000n) / 10000n;
 
   return (
-    <div className="space-y-8">
-      <GusdcBalance />
+    <div className="space-y-5">
+      <div className="grid gap-5 lg:grid-cols-[1fr_400px]">
+        <div className="space-y-3">
+          <p className="text-[14px] text-muted">Select a receipt to pledge</p>
 
-      <section className="card space-y-3">
-        <div>
-          <h2 className="text-[15px]">Pledge a receipt</h2>
-          <p className="mt-1.5 text-[13px] text-muted">
-            Pledging freezes the receipt inside the vault.
-          </p>
-        </div>
-        <div>
-          <label className="label" htmlFor="receipt-id">
-            Receipt token id
-          </label>
-          <input
-            id="receipt-id"
-            className="input"
-            value={receiptId}
-            onChange={(e) => setReceiptId(e.target.value)}
-            placeholder="1"
-          />
-        </div>
-        {collateralValue !== undefined && (
-          <p className="text-label text-muted">
-            Appraised collateral {bare(collateralValue)} gUSDC, set by the warehouse
-            operator
-          </p>
-        )}
-        <button
-          className="btn w-full"
-          disabled={isPending || confirming || !receiptId}
-          onClick={() =>
-            writeContract({
-              address: addresses.godaamVault,
-              abi: godaamVaultAbi,
-              functionName: "requestLoan",
-              args: [BigInt(receiptId)],
-            })
-          }
-        >
-          Request loan
-        </button>
-        <button
-          className="btn-ghost w-full"
-          disabled={isPending || confirming}
-          onClick={() =>
-            writeContract({
-              address: addresses.warehouseReceipt,
-              abi: warehouseReceiptAbi,
-              functionName: "setApprovalForAll",
-              args: [addresses.godaamVault, true],
-            })
-          }
-        >
-          Approve vault
-        </button>
-      </section>
+          {isLoading && receipts.length === 0 && (
+            <p className="text-[14px] text-muted">Looking for your receipts…</p>
+          )}
 
-      {activeLoan !== undefined && activeLoan > 0n && collateralValue !== undefined && (
-        <RiskForm loanId={activeLoan} collateralValue={collateralValue} />
-      )}
+          {receipts.map((r) => (
+            <ReceiptCard
+              key={r.id.toString()}
+              receipt={r}
+              selected={r.id === selected}
+              onSelect={setSelected}
+            />
+          ))}
 
-      <section className="space-y-4">
-        <h2 className="text-[19px]">Your loans</h2>
-        {myLoanIds.size === 0 && (
-          <div className="card space-y-3">
-            <p className="text-[14px] text-muted">
-              No loans yet for this wallet. Pledge a receipt above to open one.
-            </p>
-            <p className="text-[14px] text-muted">
-              There is a seeded demonstration loan on this deployment — 880 gUSDC borrowed
-              against 400 of grain at a 220% LTV, underwritten in the enclave. It is held
-              by another address, so it does not appear in your ledger.
-            </p>
-            <Link href="/loan/1" className="btn-ghost w-full sm:w-auto">
-              View the demo loan
+          <div className="rounded-card border border-dashed border-border-strong p-5 text-center text-[14px] text-muted">
+            {receipts.length === 0 ? "No receipts yet. " : "No other receipts. "}
+            <Link href="/tokenize" className="text-wheat underline-offset-4 hover:underline">
+              Tokenize one
             </Link>
           </div>
-        )}
-        {loanIds.map((id) => (
-          <LoanCard key={id.toString()} loanId={id} onOwnership={onOwnership} />
-        ))}
-      </section>
+        </div>
+
+        <aside className="card space-y-4 self-start p-5 sm:p-6">
+          <p className="text-[14px] text-muted">Indicative terms</p>
+          <dl>
+            <Term k="Collateral" v={active ? bare(collateral) : "—"} />
+            <Term k="Max principal" v={active ? bare(maxPrincipal) : "—"} />
+            <Term k="Installments" v="6" />
+            <Term k="Ceiling" v="250%" />
+          </dl>
+          <p className="border-t border-border pt-3 text-[13px] leading-relaxed text-muted">
+            Pledging freezes the receipt. The enclave sets the final principal and rate.
+          </p>
+          <button
+            className="btn w-full py-3 text-[16px] font-bold"
+            disabled={!active || isPending || confirming}
+            onClick={() =>
+              active &&
+              writeContract({
+                address: addresses.godaamVault,
+                abi: godaamVaultAbi,
+                functionName: "requestLoan",
+                args: [active.id],
+              })
+            }
+          >
+            {isPending || confirming ? "Confirming…" : "Pledge and request"}
+          </button>
+          <button
+            className="btn-ghost w-full"
+            disabled={isPending || confirming || approved === true}
+            onClick={() =>
+              writeContract({
+                address: addresses.warehouseReceipt,
+                abi: warehouseReceiptAbi,
+                functionName: "setApprovalForAll",
+                args: [addresses.godaamVault, true],
+              })
+            }
+          >
+            {approved === true ? "Vault approved" : "Approve vault"}
+          </button>
+        </aside>
+      </div>
+
+      {openedLoanId !== undefined && openedLoanId > 0n && active && (
+        <RiskForm loanId={openedLoanId} collateralValue={collateral} />
+      )}
+
+      <p className="text-[14px] text-muted">
+        Once the enclave returns terms, the position appears in{" "}
+        <Link href="/loans" className="text-text underline underline-offset-4">
+          Loans
+        </Link>
+        , where installments are paid.
+      </p>
     </div>
   );
 }
 
 export default function LoanPage() {
   return (
-    <div className="mx-auto max-w-[600px] space-y-8">
-      <header>
-        <h1 className="text-[26px] tracking-[-0.02em]">Borrow against your grain</h1>
-        <p className="mt-2 text-[15px] leading-relaxed text-muted">
-          Pledging freezes the receipt inside the vault. The Chainlink CRE Confidential
-          Workflow then decides how much you can borrow - often more than the grain is
-          worth - based on data that stays inside the enclave.
-        </p>
+    <div className="mx-auto max-w-[1120px] space-y-6">
+      <header className="flex flex-wrap items-baseline justify-between gap-3">
+        <h1 className="text-[32px] leading-none tracking-[-0.02em]">Borrow</h1>
+        <GusdcBalance compact />
       </header>
       <VerificationGate>
-        <LoanWorkspace />
+        <BorrowWorkspace />
       </VerificationGate>
     </div>
   );

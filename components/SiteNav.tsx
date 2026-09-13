@@ -8,6 +8,7 @@ const tabs = [
   { href: "/verify", label: "Verify" },
   { href: "/tokenize", label: "Tokenize" },
   { href: "/loan", label: "Borrow" },
+  { href: "/loans", label: "Loans" },
 ];
 
 function Mark() {
@@ -57,7 +58,12 @@ export function SiteNav() {
           <>
             <nav className="order-3 flex rounded-pill bg-surface p-1 sm:order-none">
               {tabs.map((t) => {
-                const active = pathname === t.href;
+                // /loan/[id] is a position, so it belongs to My loans rather than
+                // to the Borrow flow it happens to share a prefix with.
+                const active =
+                  t.href === "/loans"
+                    ? pathname === "/loans" || pathname.startsWith("/loan/")
+                    : pathname === t.href;
                 return (
                   <Link
                     key={t.href}

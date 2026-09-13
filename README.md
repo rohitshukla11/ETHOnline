@@ -10,6 +10,8 @@ ETHGlobal ETHOnline 2026 — Hedera / Chainlink / World tracks.
 
 **Live app: [https://godaam-ten.vercel.app](https://godaam-ten.vercel.app)**
 
+**Demo video:** _to be added — recording pending._
+
 The deployment carries a **seeded demo loan on Hedera testnet**, so the position is real
 and inspectable rather than described. Loan #1: **880 gUSDC borrowed against 400 gUSDC of
 grain — 220% LTV, risk score 893, 3 of 6 installments paid, 459.53 outstanding.**
@@ -39,6 +41,20 @@ but only that wallet renders it in the app.
 
 - **Chainlink CRE** — [`docs/chainlink-submission.md`](docs/chainlink-submission.md)
   maps each qualification requirement to its evidence, with file and line references.
+  The workflow is [`workflows/risk-scoring/main.ts`](workflows/risk-scoring/main.ts);
+  runs are captured in [`docs/cre-simulation-run.txt`](docs/cre-simulation-run.txt) and
+  [`docs/cre-bureau-provenance.txt`](docs/cre-bureau-provenance.txt).
+- **Hedera** — a real ERC-1400 security token issued through Asset Tokenization Studio,
+  `GWR-WHE` / [`0.0.10508257`](https://hashscan.io/testnet/contract/0.0.10508257), plus
+  six Sourcify-verified contracts. Addresses, configuration and verification status in
+  [`docs/deployments.md`](docs/deployments.md); the costed reason the vault operates on
+  `WarehouseReceipt` rather than the ATS token is in
+  [`docs/ats-adapter-plan.md`](docs/ats-adapter-plan.md).
+- **World** — World ID gates every state change. The registry is
+  [`contracts/WorldIdRegistry.sol`](contracts/WorldIdRegistry.sol) (one identity, one
+  claim, enforced by nullifier); the v4 request path is
+  [`lib/worldid.ts`](lib/worldid.ts). Integration findings in
+  [`docs/world-feedback.md`](docs/world-feedback.md).
 
 ## Deployment
 
@@ -239,10 +255,11 @@ forfeits five `exact_match` verifications.
   answer and reports `None` instead of relabelling an old price — proven on the deployed
   contract, not just against a mock.
 - **Upstream contribution** — two reproducible first-install bugs in
-  `hashgraph/asset-tokenization-studio`, written up in
-  [docs/upstream-ats-issue.md](docs/upstream-ats-issue.md): an `HH19` error that masks an
+  `hashgraph/asset-tokenization-studio`, **filed as
+  [hashgraph/asset-tokenization-studio#1406](https://github.com/hashgraph/asset-tokenization-studio/issues/1406)**: an `HH19` error that masks an
   `ERR_REQUIRE_ESM` from `did-jwt → @scure/base@2`, and a `prepare` hook invoking
-  `hardhat` before `node_modules` exists
+  `hardhat` before `node_modules` exists. Reproduction and the working install sequence
+  are kept in [docs/upstream-ats-issue.md](docs/upstream-ats-issue.md)
 
 ### World — Selfie Check
 - Gate, not a checkmark: `WarehouseReceipt.grantKyc` reverts with

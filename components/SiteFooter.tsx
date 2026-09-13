@@ -4,7 +4,7 @@ import { hashscanAddress } from "@/lib/chains";
 const contracts = [
   { label: "Vault", address: addresses.godaamVault },
   { label: "Receipt", address: addresses.warehouseReceipt },
-  { label: "World ID registry", address: addresses.worldIdRegistry },
+  { label: "Registry", address: addresses.worldIdRegistry },
   { label: "gUSDC", address: addresses.mockUsdc },
 ];
 
@@ -19,25 +19,26 @@ export function SiteFooter() {
 
   return (
     <footer className="mt-20 border-t border-divider">
-      <div className="mx-auto flex max-w-[600px] flex-col gap-3 px-4 py-7 sm:px-6">
+      <div className="mx-auto flex max-w-[1120px] flex-wrap items-center justify-between gap-3 px-5 py-6 sm:px-6">
         <p className="text-label text-muted">
-          गोदाम Godaam · Hedera testnet, chain 296 · contracts verified on Sourcify
+          गोदाम Godaam · Hedera testnet, chain 296
         </p>
         {deployed.length > 0 && (
-          <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
-            {deployed.map((c) => (
-              <li key={c.label}>
+          <p className="text-label text-muted">
+            {deployed.map((c, i) => (
+              <span key={c.label}>
+                {i > 0 && <span className="px-1.5">·</span>}
                 <a
-                  className="text-label text-muted underline-offset-4 hover:text-text hover:underline"
+                  className="underline-offset-4 hover:text-text hover:underline"
                   href={hashscanAddress(c.address)}
                   target="_blank"
                   rel="noreferrer"
                 >
                   {c.label}
                 </a>
-              </li>
+              </span>
             ))}
-          </ul>
+          </p>
         )}
       </div>
     </footer>

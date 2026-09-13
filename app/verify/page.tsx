@@ -4,7 +4,10 @@ import { selfieCheckLegacy, useIDKitRequest, type RpContext } from "@worldcoin/i
 import { useCallback, useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import { useVerification } from "@/components/useVerification";
-import { hashscanTx } from "@/lib/chains";
+import { WorldIdQr } from "@/components/WorldIdQr";
+import { hashscanAddress, hashscanTx } from "@/lib/chains";
+import { addresses } from "@/lib/contracts";
+import { ACCEPTED_VERIFICATION_LEVELS } from "@/lib/worldid-policy";
 
 /**
  * World ID verification.
@@ -18,6 +21,29 @@ import { hashscanTx } from "@/lib/chains";
  * worldcoin/idkit#204, where World App completes with a legacy `protocol_version:
  * "3.0"` result or a pure-v4 payload comes back `verification_rejected`.
  */
+
+const short = (a?: string | null) => (a ? `${a.slice(0, 8)}…${a.slice(-4)}` : null);
+
+function Field({ k, v }: { k: string; v: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-[13px] text-muted">{k}</p>
+      <p className="mt-0.5 text-[15px] text-text">{v}</p>
+    </div>
+  );
+}
+
+function Unlock({ label, done }: { label: string; done: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-1.5">
+      <span className={`text-[15px] ${done ? "text-text" : "text-muted"}`}>{label}</span>
+      <span className={`text-[15px] ${done ? "text-good" : "text-muted"}`}>
+        {done ? "✓" : "—"}
+      </span>
+    </div>
+  );
+}
+
 export default function VerifyPage() {
   const { address, isConnected } = useAccount();
   const { isVerified, refetch } = useVerification();
@@ -60,7 +86,7 @@ export default function VerifyPage() {
   const onComplete = useCallback(
     async (result: unknown) => {
       setError(null);
-      setStatus("Verifying with World and writing the nullifier onchain...");
+      setStatus("Verifying with World and writing the nullifier onchain…");
       try {
         const res = await fetch("/api/worldid/verify", {
           method: "POST",
@@ -82,64 +108,177 @@ export default function VerifyPage() {
     [address, refetch]
   );
 
+  const stage = isVerified
+    ? "Verified"
+    : rpError
+      ? "Not configured"
+      : !isConnected
+        ? "Wallet needed"
+        : rpContext
+          ? "Awaiting proof"
+          : "Preparing";
+
   return (
-    <div className="mx-auto max-w-[600px] space-y-8">
-      <header>
-        <h1 className="text-[26px] tracking-[-0.02em]">World ID verification</h1>
-        <p className="mt-2 text-[15px] leading-relaxed text-muted">
-          Selfie Check binds this collateral claim to a liveness-verified person and
-          makes repeated claims materially harder. The nullifier it produces is unique
-          to you and this action; Godaam records it onchain and refuses a second
-          address presenting the same one, so one identity gets one claim. Without a
-          verification, KYC is never granted and no warehouse receipt can be minted to
-          you.
-        </p>
+    <div className="mx-auto max-w-[1120px] space-y-6">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-[32px] leading-none tracking-[-0.02em]">Identity</h1>
+        <span className={isVerified ? "pill" : "chip"}>
+          {isVerified ? "Verified" : "Not verified"}
+        </span>
       </header>
 
-      {isVerified ? (
-        <div className="card space-y-3">
-          <span className="pill">Verified</span>
-          <div>
-            <p className="text-label text-muted">Bound to</p>
-            <p className="fig mt-1 break-all text-[13px]">{address}</p>
-          </div>
-          <p className="text-[14px] text-muted">
-            Cleared for receipt tokenization and borrowing.
+      <div className="grid gap-5 lg:grid-cols-2">
+        {/* ── Scan panel ─────────────────────────────────────────────── */}
+        <section className="card flex flex-col items-center p-6 text-center sm:p-8">
+          {/* The frame is constant across every state so the screen does not
+              restructure as the wallet connects or the request is signed. Only what
+              sits under it changes. */}
+          <h2 className="text-[19px]">
+            {isVerified ? "Identity bound to this address" : "Verify with World ID"}
+          </h2>
+          <p className="mt-1.5 text-[14px] text-muted">
+            {isVerified
+              ? "Cleared for receipt tokenization and borrowing."
+              : "Scan with World App to prove you\u2019re a real person"}
           </p>
-        </div>
-      ) : !isConnected ? (
-        <p className="text-[14px] text-muted">Connect your wallet first.</p>
-      ) : rpError ? (
-        <div className="card space-y-3">
-          <span className="pill-bad">Not configured</span>
-          <p className="text-[14px] text-bad">{rpError}</p>
-          <p className="text-label text-muted">
-            The route refuses rather than minting an unsigned request.
-          </p>
-        </div>
-      ) : !rpContext ? (
-        <p className="text-[14px] text-muted">Preparing a signed proof request...</p>
-      ) : (
-        <VerifyAction
-          rpContext={rpContext}
-          signal={address as string}
-          onComplete={onComplete}
-          status={status}
-          error={error}
-        />
-      )}
 
+          {isVerified ? (
+            <VerifiedPanel address={address} txHash={txHash} />
+          ) : rpContext && isConnected ? (
+            <VerifyAction
+              rpContext={rpContext}
+              signal={address as string}
+              onComplete={onComplete}
+              status={status}
+              error={error}
+            />
+          ) : (
+            <>
+              <div className="mt-6 flex justify-center">
+                <WorldIdQr uri={null} />
+              </div>
+              {rpError ? (
+                <>
+                  <span className="pill-bad mt-6">Not configured</span>
+                  <p className="mt-3 max-w-[42ch] text-[13px] leading-relaxed text-muted">
+                    {rpError}
+                  </p>
+                </>
+              ) : !isConnected ? (
+                <p className="mt-6 max-w-[42ch] text-[13px] leading-relaxed text-muted">
+                  Connect a wallet first — the proof is bound to the address it
+                  verifies.
+                </p>
+              ) : (
+                <p className="mt-6 text-[13px] text-muted">
+                  Preparing a signed proof request…
+                </p>
+              )}
+            </>
+          )}
+        </section>
+
+        {/* ── Status column ──────────────────────────────────────────── */}
+        <div className="space-y-5">
+          <section className="card space-y-4 p-5 sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-[19px]">Status</h2>
+              <span className={stage === "Not configured" ? "pill-bad" : "chip"}>{stage}</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field
+                k="Wallet"
+                v={
+                  address ? (
+                    <span className="fig text-[14px]">{short(address)}</span>
+                  ) : (
+                    <span className="text-muted">Not connected</span>
+                  )
+                }
+              />
+              <Field
+                k="Nullifier"
+                v={<span className="text-muted">Hidden</span>}
+              />
+            </div>
+
+            <div>
+              <p className="text-[13px] text-muted">Accepted credentials</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {/* Rendered from lib/worldid-policy.ts, so the screen cannot drift from
+                    the allowlist the server actually enforces. */}
+                {ACCEPTED_VERIFICATION_LEVELS.map((l) => (
+                  <span
+                    key={l}
+                    className="rounded-pill border border-wheat-edge px-3 py-1 text-[13px] capitalize text-wheat"
+                  >
+                    {l}
+                  </span>
+                ))}
+                <span className="rounded-pill border border-border px-3 py-1 text-[13px] text-muted">
+                  Device — refused
+                </span>
+              </div>
+              <p className="mt-2 text-[12px] leading-snug text-muted">
+                Selfie Check is requested but not yet in the allowlist: its credential
+                identifier is undocumented, and guessing it would either reject every
+                real proof or be widened until one passed.
+              </p>
+            </div>
+
+            <div className="border-t border-border pt-3">
+              <p className="text-[13px] text-muted">Registry</p>
+              <a
+                className="fig mt-0.5 inline-block text-[14px] text-wheat underline-offset-4 hover:underline"
+                href={hashscanAddress(addresses.worldIdRegistry)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {short(addresses.worldIdRegistry)} ↗
+              </a>
+            </div>
+          </section>
+
+          <section className="card p-5 sm:p-6">
+            <p className="text-[13px] text-muted">Unlocks when verified</p>
+            <div className="mt-2 divide-y divide-border">
+              <Unlock label="KYC on receipt token" done={isVerified} />
+              <Unlock label="Receipt tokenization" done={isVerified} />
+              <Unlock label="Borrowing" done={isVerified} />
+            </div>
+          </section>
+
+          <section className="card-tint space-y-2 p-5 sm:p-6">
+            <p className="text-[15px] font-medium text-wheat">What is recorded</p>
+            <p className="text-[14px] leading-relaxed text-muted">
+              Only a nullifier — a one-way identifier unique to you and this action. No
+              biometric, no document, no personal data. A second address presenting the
+              same nullifier is refused onchain.
+            </p>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VerifiedPanel({ address, txHash }: { address?: string; txHash: string | null }) {
+  return (
+    <>
+      <span className="pill mt-6">Verified</span>
+      <p className="fig mt-4 break-all text-[13px] text-muted">{address}</p>
       {txHash && (
         <a
-          className="text-label text-muted underline-offset-4 hover:text-text hover:underline"
+          className="mt-4 text-[14px] text-wheat underline-offset-4 hover:underline"
           href={hashscanTx(txHash)}
           target="_blank"
           rel="noreferrer"
         >
-          View attestation on HashScan
+          View attestation on HashScan ↗
         </a>
       )}
-    </div>
+    </>
   );
 }
 
@@ -183,27 +322,32 @@ function VerifyAction({
   }, [flow.isSuccess, flow.result, onComplete]);
 
   return (
-    <div className="card space-y-3">
+    <>
+      <div className="mt-6 flex justify-center">
+        <WorldIdQr uri={flow.connectorURI} />
+      </div>
+
       <button
-        className="btn w-full"
+        className="btn mt-5 w-full py-3 text-[16px] font-bold"
         onClick={() => flow.open()}
         disabled={flow.isAwaitingUserConfirmation}
       >
-        {flow.isAwaitingUserConfirmation
-          ? "Waiting for World App..."
-          : "Verify with World ID"}
+        {flow.isAwaitingUserConfirmation ? "Waiting for World App…" : "Open World App"}
       </button>
+      <p className="mt-3 text-[13px] text-muted">
+        Keep this page open until the status updates
+      </p>
 
       {flow.isError && flow.errorCode && (
-        <p className="text-[13px] leading-relaxed text-bad">
+        <p className="mt-3 text-[13px] leading-relaxed text-bad">
           {flow.errorCode === "feature_unavailable" ||
           flow.errorCode === "credential_unavailable"
             ? "Selfie Check is not enabled for this app yet. Access is granted per app by World; the request is pending."
             : `World App returned: ${flow.errorCode}`}
         </p>
       )}
-      {status && <p className="text-[13px] text-muted">{status}</p>}
-      {error && <p className="text-[13px] text-bad">{error}</p>}
-    </div>
+      {status && <p className="mt-3 text-[13px] text-muted">{status}</p>}
+      {error && <p className="mt-3 text-[13px] text-bad">{error}</p>}
+    </>
   );
 }

@@ -85,6 +85,35 @@ cast call 0x4b7523a4697378155bdb11fe855ecb8f2571b6a5 "totalSupply()(uint256)" \
 | **Compliance / Identity Registry** | `0.0.0` | No external ERC-3643 modules. The compliance decision stays in the layer the protocol controls |
 | Rights | Liquidation, Redemption | A claim on the grain, and the right to redeem it. No voting, dividend `NONE` |
 
+### Lifecycle operations on `GWR-WHE`
+
+**Pending — not yet performed.** The Hedera bounty asks for issuance, configuration and
+at least one lifecycle operation. Issuance and configuration are above. A compliance
+operation on the ATS token itself is outstanding:
+
+| Operation | Transaction |
+| --- | --- |
+| Blocked transfer to a non-allowlisted account | _pending_ |
+| Add to allowlist, then successful transfer | _pending_ |
+
+Verified preconditions, read from the diamond at
+`0x4b7523a4697378155bdb11fe855ecb8f2571b6a5`:
+
+```
+getControlListType()    → 1       allowlist, fails closed
+getControlListCount()   → 1
+getControlListMembers() → 0x033588a8025f47128cf7b102412b81ca43c2c7f0   (0.0.10498991)
+totalSupply()           → 42000   decimals() → 0
+```
+
+So a transfer to any account other than `0.0.10498991` reverts on the control list. The
+intended counterparty for the blocked-transfer demonstration is `0.0.10498999`, which is
+funded and deliberately not on the allowlist.
+
+Every freeze, forced transfer and compliance revert currently in this repo happens on
+`WarehouseReceipt`, our own contract — not on the ATS token. That distinction is stated
+here rather than left for a reader to discover.
+
 **On internal KYC, stated plainly.** It was enabled at issuance and then deactivated,
 because satisfying it is not an administrative action. `GrantKycCommandHandler` runs the
 supplied file through `Terminal3Vc.vcFromBase64` and `verifyVc`, and throws `InvalidVc`

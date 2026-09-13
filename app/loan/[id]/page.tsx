@@ -17,7 +17,7 @@ export default function LoanByIdPage({ params }: { params: { id: string } }) {
 
   if (loanId === null || loanId <= 0n) {
     return (
-      <div className="mx-auto max-w-[600px] space-y-4">
+      <div className="mx-auto max-w-[1120px] space-y-4">
         <h1 className="text-[26px] tracking-[-0.02em]">Loan not found</h1>
         <p className="text-[15px] text-muted">
           `{params.id}` is not a loan id.
@@ -32,15 +32,14 @@ export default function LoanByIdPage({ params }: { params: { id: string } }) {
   const isDemo = loanId === DEMO_LOAN_ID;
 
   return (
-    <div className="mx-auto max-w-[600px] space-y-6">
-      <header>
-        <h1 className="text-[26px] tracking-[-0.02em]">Loan #{loanId.toString()}</h1>
-        <p className="mt-2 text-[15px] leading-relaxed text-muted">
-          Read-only. Every figure below is an <span className="fig">eth_call</span> against
-          the Sourcify-verified vault on Hedera testnet, so it needs no wallet and nothing
-          here is actionable.
-        </p>
-      </header>
+    <div className="mx-auto max-w-[1120px] space-y-6">
+      {/* No heading here: LoanPosition renders "Loan #N" with its status pill, and two
+          of them stacked read as a duplicate. */}
+      <p className="text-[15px] leading-relaxed text-muted">
+        Read-only. Every figure below is an <span className="fig">eth_call</span> against
+        the Sourcify-verified vault on Hedera testnet, so it needs no wallet and nothing
+        here is actionable.
+      </p>
 
       {isDemo && (
         <div className="card space-y-2">
