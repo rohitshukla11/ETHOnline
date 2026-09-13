@@ -8,6 +8,11 @@ nullifier makes sure one identity gets one claim.
 
 ETHGlobal ETHOnline 2026 — Hedera / Chainlink / World tracks.
 
+## Bounty submissions
+
+- **Chainlink CRE** — [`docs/chainlink-submission.md`](docs/chainlink-submission.md)
+  maps each qualification requirement to its evidence, with file and line references.
+
 ## Deployment
 
 **Live app:** _not yet deployed — see `docs/vercel-deploy.md` for the exact steps and the

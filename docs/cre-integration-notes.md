@@ -126,7 +126,7 @@ Settings) or run `cre login`.
 
 ## Open constraint: CRE has no Hedera chain selector
 
-`cre.capabilities.EVMClient` ships 59 chain selectors in 1.20.1. Hedera is not among them —
+`EVMClient.SUPPORTED_CHAIN_SELECTORS` has 63 entries in 1.20.1. Hedera is not among them —
 a case-insensitive search for `hedera` or `hashgraph` in
 `generated-sdk/capabilities/blockchain/evm/v1alpha/client_sdk_gen.d.ts` returns zero hits.
 

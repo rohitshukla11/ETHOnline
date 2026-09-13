@@ -120,9 +120,12 @@ const ASSESSMENT_ABI = [
  * enclave and the plaintext trigger payload is never visible to the node operator.
  *
  * The signed report is produced here and returned to the caller. It is NOT written onchain
- * from inside the workflow: `cre.capabilities.EVMClient` ships 59 chain selectors and
- * Hedera is not among them, so `evm.writeReport` cannot target GodaamVault on Hedera
- * testnet. The relay to `GodaamVault.onReport` therefore runs through the CRE forwarder
+ * from inside the workflow: `EVMClient.SUPPORTED_CHAIN_SELECTORS` has 63 entries in
+ * 1.20.1 and Hedera is not among them, so `evm.writeReport` cannot target GodaamVault on Hedera
+ * testnet. Note the two lists are different: `getNetwork()` resolves 320 testnet EVM
+ * networks and DOES include hedera-testnet (chainId 296, selector 222782988166878823),
+ * but the EVM capability's write list does not. See docs/chainlink-submission.md.
+ * The relay to `GodaamVault.onReport` therefore runs through the CRE forwarder
  * driven by the app. The vault's `onlyForwarder` check is unchanged, so the security
  * property — only a signed TEE report can disburse — still holds. Swap in a direct
  * `evm.writeReport` the day a Hedera selector lands.

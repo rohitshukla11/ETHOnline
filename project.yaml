@@ -3,17 +3,17 @@
 # ==========================================================================
 # The Godaam workflow makes NO chain calls. main.ts uses only
 # ConfidentialHTTPClient (the bureau lookup) and the HTTP trigger - there is no
-# EVMClient and no writeReport. The DON-signed report is returned to the caller
-# and the app relays it to GodaamVault through the CRE forwarder, because CRE
-# ships no Hedera chain selector. See docs/cre-integration-notes.md.
+# EVMClient and no writeReport, because EVMClient.SUPPORTED_CHAIN_SELECTORS has
+# 63 entries in SDK 1.20.1 and Hedera is not one of them. The DON-signed report
+# is returned to the caller and relayed to GodaamVault through the CRE forwarder.
+# See docs/chainlink-submission.md and docs/cre-integration-notes.md.
 #
-# The `rpcs` entry below is therefore a CLI requirement, not a dependency. The
-# simulator refuses to start without at least one RPC:
-#
-#   ✗ no RPC URLs found for target "staging-settings"
-#
-# and it rejects both `rpcs: []` and omitting the key entirely. Sepolia is listed
-# purely to satisfy that check; nothing in the workflow connects to it.
+# The `rpcs` entry below is declared but never connected to. That is the shape the
+# official templates use: smartcontractkit/cre-templates, starter-templates/
+# confidential-workflows/automated-liquidation-protection/project.yaml declares
+# this same ethereum-testnet-sepolia RPC, and that workflow performs no chain
+# writes either. The CLI requires at least one RPC per target and rejects both
+# `rpcs: []` and an absent key.
 # ==========================================================================
 staging-settings:
   rpcs:
