@@ -262,7 +262,7 @@ function LoanCard({
           label="LTV decided by:"
           source={
             attested
-              ? "Chainlink CRE confidential workflow, commitment recorded onchain"
+              ? "CRE simulation (captured), commitment recorded onchain"
               : "hand-encoded, no TEE commitment onchain"
           }
           degraded={!attested}

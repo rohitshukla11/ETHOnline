@@ -10,6 +10,31 @@ ETHGlobal ETHOnline 2026 — Hedera / Chainlink / World tracks.
 
 **Live app: [https://godaam-ten.vercel.app](https://godaam-ten.vercel.app)**
 
+The deployment carries a **seeded demo loan on Hedera testnet**, so the position is real
+and inspectable rather than described. Loan #1: **880 gUSDC borrowed against 400 gUSDC of
+grain — 220% LTV, risk score 893, 3 of 6 installments paid, 459.53 outstanding.**
+
+Those terms came out of the enclave, not a keyboard. The Confidential Workflow was run
+through the CRE CLI and its output submitted verbatim
+([`docs/cre-captured-report.json`](docs/cre-captured-report.json)), so the
+`privateInputCommitment` recorded onchain,
+`0x0ed3c984…71ceb`, is the enclave's own. The app labels it
+`CRE simulation (captured)` — not a live trigger, because no DON is deployed.
+
+| Step | Transaction |
+| --- | --- |
+| Issue receipt #2 | [`0x1cb138a7…125637b`](https://hashscan.io/testnet/transaction/0x1cb138a78f05eef113abe2835df64aed115ce42961c64c6e25111af58125637b) |
+| Approve vault | [`0x35c890bc…f3bfa09e`](https://hashscan.io/testnet/transaction/0x35c890bc408f1a2945c16198eb711aec24201223cdc072110d1d302af3bfa09e) |
+| Request loan (escrow + freeze) | [`0x49eab2b4…283fed346`](https://hashscan.io/testnet/transaction/0x49eab2b42cb68f121bda8e80665b30cde6e04687870d74b33c086b1283fed346) |
+| **CRE report through the forwarder → 880 disbursed** | [`0x7f94390c…5769bbd6`](https://hashscan.io/testnet/transaction/0x7f94390cb21dd9825e29798f5592c95ef1ca9c015a6f9152659c49175769bbd6) |
+| Installment 1 | [`0xbb15b680…074682c0a`](https://hashscan.io/testnet/transaction/0xbb15b680b4bb318cfa9a341bd689d74365bb9ecc69260108c8213a2074682c0a) |
+| Installment 2 | [`0xf1d6e7c1…523f2657`](https://hashscan.io/testnet/transaction/0xf1d6e7c1758c57ed6ae58e56ee8f45f26946c54cba0ec4ad814c63a4523f2657) |
+| Installment 3 | [`0x3d8a8b06…2f496aeb`](https://hashscan.io/testnet/transaction/0x3d8a8b06ba36dfbd2fea38e9a4670f3de6a064d0390b37247e7396ab2f496aeb) |
+
+**The loan belongs to `0x033588A8…3c2C7f0`.** `/loan` filters to the connected wallet, so
+another address sees an empty ledger — the position is inspectable on HashScan by anyone,
+but only that wallet renders it in the app.
+
 ## Bounty submissions
 
 - **Chainlink CRE** — [`docs/chainlink-submission.md`](docs/chainlink-submission.md)

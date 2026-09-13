@@ -89,8 +89,47 @@ async function fetchAssessment(
     riskScore: 612,
     installmentCount: 6,
     installmentPeriod: 30n * 24n * 3600n,
-    privateInputCommitment: ethers.keccak256(ethers.toUtf8Bytes("tee-input-commitment")),
+    // MUST be zero. The app reads a non-zero commitment as proof a TEE produced these
+    // terms (app/loan/page.tsx: `attested`), so a placeholder hash here would make a
+    // typed number render as enclave-derived on a public URL. Zero makes it render as
+    // hand-encoded, in red, which is what it is.
+    privateInputCommitment: ethers.ZeroHash,
   };
+
+  // Captured simulation. `cre workflow simulate --listen` accepts a trigger and runs the
+  // workflow, but answers the caller with an empty body (HTTP 200, 0 bytes) - verified
+  // again here with the documented {"input": ...} wrapper, so it is not a payload-shape
+  // mistake. The enclave's decision only reaches stdout. CRE_CAPTURED_REPORT points at a
+  // JSON file holding that output verbatim, so the report submitted onchain carries the
+  // enclave's own numbers and its own commitment rather than typed ones.
+  const capturedPath = process.env.CRE_CAPTURED_REPORT;
+  if (!live && capturedPath) {
+    const captured = JSON.parse(fs.readFileSync(capturedPath, "utf8")) as {
+      approved: boolean;
+      approvedPrincipal: string;
+      aprBps: number;
+      ltvBps: number;
+      riskScore: number;
+      installmentCount: number;
+      installmentPeriod: string;
+      privateInputCommitment: string;
+    };
+    return {
+      payload: {
+        loanId,
+        approved: captured.approved,
+        approvedPrincipal: BigInt(captured.approvedPrincipal),
+        aprBps: captured.aprBps,
+        ltvBps: captured.ltvBps,
+        riskScore: captured.riskScore,
+        installmentCount: captured.installmentCount,
+        installmentPeriod: BigInt(captured.installmentPeriod),
+        privateInputCommitment: captured.privateInputCommitment,
+      },
+      source: `CRE simulation (captured) from ${capturedPath}`,
+      commitment: captured.privateInputCommitment,
+    };
+  }
 
   if (!live || !triggerUrl) {
     return {
