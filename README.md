@@ -174,17 +174,27 @@ forfeits five `exact_match` verifications.
   fixture run both ways is in
   [docs/cre-bureau-provenance.txt](docs/cre-bureau-provenance.txt). Note it still
   approves — what changes is that the degradation is declared, not hidden
-- **Not yet live onchain.** `CRE_TRIGGER_URL` is deliberately unset: the simulator's
-  `--listen` mode returns `Content-Length: 0`, so wiring it would turn a broken pipe
-  into a fake decline. A real trigger needs a deployed workflow and **deploy access is
-  requested and pending**. Until then `demo-lifecycle.ts` uses a hand-encoded report and
-  prints `LTV decided by: hand-encoded fallback` on screen, so the 130% LTV is never
-  passed off as a TEE output
+- **A CRE workflow broadcast a real transaction to Hedera testnet.**
+  [`0xbfa349a7…db51d7c`](https://hashscan.io/testnet/transaction/0xbfa349a752c7a0f1c0c089ca7e7f0961a26e855b2b6f766971d59b083db51d7c)
+  was sent by `evmClient.writeReport` from inside the workflow. It reverted: the DON
+  calls the Keystone forwarder ABI `report(address,bytes,bytes,bytes[])` (`0x11289565`)
+  and `MockCreForwarder` implements `forward(address,bytes,bytes)` (`0xb13ba5de`). A
+  one-function gap, costed in
+  [docs/chainlink-submission.md](docs/chainlink-submission.md). Execution is demonstrated
+  by CRE CLI simulation, which is what the qualification criteria ask for — "a simulation
+  using the CRE CLI **or** a live deployment"
+- **`CRE_TRIGGER_URL` is deliberately unset.** The simulator's `--listen` mode returns
+  `Content-Length: 0`, so wiring it would turn a broken pipe into a fake decline.
+  `demo-lifecycle.ts` therefore uses a hand-encoded report and prints
+  `LTV decided by: hand-encoded fallback` on screen, so the 130% LTV is never passed off
+  as a TEE output
 - Integration feedback: [docs/chainlink-feedback.md](docs/chainlink-feedback.md)
 - The private bureau lookup goes through `ConfidentialHTTPClient`, so the land record
   reference never transits the public network. See
   [docs/cre-integration-notes.md](docs/cre-integration-notes.md) for the SDK gotchas and
-  the one unresolved architectural constraint (CRE has no Hedera chain selector)
+  the chain-selector finding: Hedera **is** in the SDK's selector registry (320 testnet
+  EVM networks) and absent only from `EVMClient.SUPPORTED_CHAIN_SELECTORS` (63), which is
+  a lookup table rather than a type gate — so the write reached the chain
 
 ### Extra credit
 

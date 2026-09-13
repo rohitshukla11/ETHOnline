@@ -127,16 +127,25 @@ const ASSESSMENT_ABI = [
  * Entry point. Registered with `handlerInTee`, so the CRE node schedules it inside a Nitro
  * enclave and the plaintext trigger payload is never visible to the node operator.
  *
- * The signed report is produced here and returned to the caller. It is NOT written onchain
- * from inside the workflow: `EVMClient.SUPPORTED_CHAIN_SELECTORS` has 63 entries in
- * 1.20.1 and Hedera is not among them, so `evm.writeReport` cannot target GodaamVault on Hedera
- * testnet. Note the two lists are different: `getNetwork()` resolves 320 testnet EVM
- * networks and DOES include hedera-testnet (chainId 296, selector 222782988166878823),
- * but the EVM capability's write list does not. See docs/chainlink-submission.md.
- * The relay to `GodaamVault.onReport` therefore runs through the CRE forwarder
- * driven by the app. The vault's `onlyForwarder` check is unchanged, so the security
- * property — only a signed TEE report can disburse — still holds. Swap in a direct
- * `evm.writeReport` the day a Hedera selector lands.
+ * The signed report is produced here and returned to the caller. By default it is not
+ * written onchain from here, but it CAN be: `writeOnchain` in config.json enables the
+ * `evm.writeReport` path below, and running that with `--broadcast` put a real
+ * transaction on Hedera testnet
+ * (0xbfa349a752c7a0f1c0c089ca7e7f0961a26e855b2b6f766971d59b083db51d7c).
+ *
+ * Two lists matter here and they differ. `getNetwork()` resolves 320 testnet EVM networks
+ * and DOES include hedera-testnet (chainId 296, selector 222782988166878823).
+ * `EVMClient.SUPPORTED_CHAIN_SELECTORS` has 63 entries and does not — but it is a lookup
+ * table, not a type gate, so the constructor accepts the selector anyway once the chain
+ * is declared through `experimental-chains` in project.yaml.
+ *
+ * That transaction reverted, one function short of the vault: the DON writes with the
+ * Keystone forwarder ABI `report(address,bytes,bytes,bytes[])` (0x11289565) and
+ * MockCreForwarder implements `forward(address,bytes,bytes)` (0xb13ba5de). So the default
+ * path relays to `GodaamVault.onReport` through the forwarder, driven by the app. The
+ * vault's `onlyForwarder` and `workflowOwner` checks are unchanged, so the security
+ * property — only a signed TEE report can disburse — still holds.
+ * See docs/cre-end-to-end.txt and docs/chainlink-submission.md.
  */
 const assessInTee = (runtime: TeeRuntime<Config>, payload: { input: Uint8Array }) => {
 	const inputs = privateInputsSchema.parse(JSON.parse(new TextDecoder().decode(payload.input)))

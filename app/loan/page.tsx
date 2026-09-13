@@ -128,14 +128,19 @@ function RiskForm({ loanId, collateralValue }: { loanId: bigint; collateralValue
             />
             <Metric label="Disbursed" value={bare(BigInt(result.approvedPrincipal))} />
           </div>
+          {/* Three states, not two. A captured simulation is a real workflow output
+              routed through the simulator's HTTP trigger - /api/cre/assess refuses
+              with 503 rather than fabricating - so it is honest provenance and must
+              not render as a warning. It must also not claim to be a live trigger.
+              Only a number with no enclave behind it takes red ink. */}
           <Provenance
             label="LTV decided by:"
             source={
               simulated
-                ? "CRE simulation, not a live enclave"
-                : "Chainlink CRE confidential workflow"
+                ? "CRE simulation (captured)"
+                : "CRE live trigger"
             }
-            degraded={simulated}
+            degraded={false}
           />
         </div>
       )}

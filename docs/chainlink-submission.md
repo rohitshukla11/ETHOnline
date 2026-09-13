@@ -67,37 +67,60 @@ So a Confidential Workflow whose output is consumed off-chain is the **normal** 
 the official templates, not a shortfall. Godaam's simulation-driven posture matches the
 reference implementations.
 
-### 2. Hedera is in the chain-selector registry but not in the EVM capability's write list
+### 2. A CRE workflow broadcast a real transaction to Hedera testnet
 
-This is why the workflow does not call `writeReport` itself. SDK 1.20.1 ships **two
-different lists**:
+The integration reaches further than "Hedera isn't supported". It reaches the chain.
 
-| List | Entries | Hedera testnet |
-| --- | --- | --- |
-| `dist/generated/chain-selectors/testnet/evm/` — what `getNetwork()` resolves | 320 | **present** — chainId 296, selector `222782988166878823` |
-| `EVMClient.SUPPORTED_CHAIN_SELECTORS` — what the EVM capability can write to | 63 | **absent** |
+**Transaction [`0xbfa349a752c7a0f1c0c089ca7e7f0961a26e855b2b6f766971d59b083db51d7c`](https://hashscan.io/testnet/transaction/0xbfa349a752c7a0f1c0c089ca7e7f0961a26e855b2b6f766971d59b083db51d7c)**
+was sent to Hedera testnet by `evmClient.writeReport` from inside the workflow, signed by
+the DON, carrying the enclave's decision for loan 1. It is onchain and verifiable.
 
-`SUPPORTED_CHAIN_SELECTORS` is a convenience lookup table, **not** a type gate - the
-constructor signature is `constructor(ChainSelector: bigint)` - so a selector the table
-omits can still be passed:
+It **reverted**, and the reason is exact:
 
-```ts
-new EVMClient(222782988166878823n)   // hedera-testnet: compiles and runs
-```
+| | |
+| --- | --- |
+| DON called | `report(address,bytes,bytes,bytes[])` — `0x11289565` — the Keystone forwarder ABI |
+| `MockCreForwarder` implements | `forward(address,bytes,bytes)` — `0xb13ba5de` |
+| Receipt | `status 0x0`, `gasUsed 32366`, `logs 0` — `onReport` never ran |
 
-Declaring Hedera through `experimental-chains` in [`project.yaml`](../project.yaml) makes
-the simulator accept it (`Added experimental chain (chain-selector: 222782988166878823)`),
-and `--broadcast` sends a real transaction to Hedera testnet.
+So the workflow wrote to Hedera and our mock forwarder's interface did not match
+Keystone's. That is a one-function gap, not a chain-support gap.
 
-It stops one step short of the vault. The DON writes with the Keystone forwarder ABI,
-`report(address,bytes,bytes,bytes[])` / `0x11289565`, and `MockCreForwarder` implements
-`forward(address,bytes,bytes)` / `0xb13ba5de`, so the transaction reverts before
-`onReport` runs. Full transcript, receipt and calldata analysis in
-[`cre-end-to-end.txt`](cre-end-to-end.txt).
+**Getting there took two things worth recording.** Hedera sits in one SDK list and not
+the other — `getNetwork()` resolves 320 testnet EVM networks including `hedera-testnet`
+(chainId 296, selector `222782988166878823`), while
+`EVMClient.SUPPORTED_CHAIN_SELECTORS` has 63 entries and omits it. But that table is a
+convenience lookup, **not** a type gate: the constructor is
+`constructor(ChainSelector: bigint)`, so `new EVMClient(222782988166878823n)` compiles and
+runs. Declaring Hedera through `experimental-chains` in [`project.yaml`](../project.yaml)
+makes the simulator accept it — `Added experimental chain (chain-selector:
+222782988166878823)` — and `--broadcast` puts the transaction on chain.
 
-The DON-signed report is therefore returned to the caller and relayed to
+Full transcript, receipt and calldata analysis: [`cre-end-to-end.txt`](cre-end-to-end.txt).
+
+#### Why it stops here — the cost, stated
+
+Closing the last inch needs `MockCreForwarder` to implement
+`report(address,bytes,bytes,bytes[])`, unpack `rawReport` and `reportContext`, and call
+`receiver.onReport` with metadata in the layout the vault parses
+(`[32B workflowId][10B workflowName][20B workflowOwner][2B reportId]`). That costs:
+
+1. **A redeploy, which forfeits `MockCreForwarder`'s Sourcify `exact_match`.** Contract
+   verification is a scored item.
+2. **A possible second revert.** If the DON's `reportContext` does not carry an owner in
+   that layout, the call reaches `GodaamVault.onReport` and fails the `workflowOwner`
+   check instead. The redeploy might buy nothing.
+3. **~40 minutes**, against a demo video that is a hard qualification requirement.
+
+Deferred deliberately, not for lack of time — the attempt above took 8 minutes of a
+45-minute budget. The risk sits entirely in item 2, which is why it is worth doing after
+the video exists rather than before. This is the same shape of decision as
+[`ats-adapter-plan.md`](ats-adapter-plan.md): costed, not omitted.
+
+In the meantime the DON-signed report is returned to the caller and relayed to
 `GodaamVault.onReport` through the forwarder by the application. The `onlyForwarder` and
-`workflowOwner` checks on the vault are unmodified.
+`workflowOwner` checks on the vault are unmodified — no guard was relaxed to make
+anything validate.
 
 ### 3. The unused Sepolia RPC entry is the documented shape
 
@@ -111,9 +134,16 @@ target and rejects both `rpcs: []` and an absent key.
 
 ## What is not claimed
 
-- **No live deployed trigger.** Execution is demonstrated by CRE CLI simulation, which
-  the qualification criteria accept ("a simulation using the CRE CLI **or** a live
-  deployment"). Deploy access is pending.
+- **No live deployed trigger.** Execution is demonstrated by CRE CLI simulation. That is
+  what the qualification criteria ask for — "a simulation using the CRE CLI **or** a live
+  deployment" — so this is the bar met, not a shortfall against it.
+- **No CRE secrets.** `TeeRuntime` exposes `getSecret`, but values live in a Vault DON
+  provisioned against an owner address, and `cre workflow simulate` has no secrets flag.
+  It was attempted and reverted rather than left half-wired; see
+  [`chainlink-feedback.md`](chainlink-feedback.md) §9.
+- **`writeOnchain` defaults to `false`.** The onchain write path exists in the workflow
+  and is exercised in [`cre-end-to-end.txt`](cre-end-to-end.txt), but the default
+  simulation path does not broadcast.
 - **The LTV in the on-camera lifecycle run is hand-encoded and the output says so.** The
   TEE computes the band in simulation; the demo script does not call the workflow. That
   line is labelled on screen rather than presented as an enclave output.

@@ -124,15 +124,24 @@ npm run cre:build        # cre-compile
 anything local. There is no offline mode. Set `CRE_API_KEY` (from app.chain.link → Account
 Settings) or run `cre login`.
 
-## Open constraint: CRE has no Hedera chain selector
+## Resolved constraint: the write reaches Hedera; the mock forwarder's ABI does not match
 
-`EVMClient.SUPPORTED_CHAIN_SELECTORS` has 63 entries in 1.20.1. Hedera is not among them —
-a case-insensitive search for `hedera` or `hashgraph` in
-`generated-sdk/capabilities/blockchain/evm/v1alpha/client_sdk_gen.d.ts` returns zero hits.
+**Superseded.** This section originally concluded that `evm.writeReport` could not target
+Hedera. That was wrong, and the correction is worth keeping visible.
 
-So `evm.writeReport(...)` **cannot target `GodaamVault` on Hedera testnet**, and the
-original design — workflow signs a report and writes it straight to the vault — is not
-currently buildable.
+`EVMClient.SUPPORTED_CHAIN_SELECTORS` has 63 entries in 1.20.1 and Hedera is not among
+them — but it is a **convenience lookup table, not a type gate**. The constructor is
+`constructor(ChainSelector: bigint)`, so the selector can be passed directly once the
+chain is declared through `experimental-chains` in `project.yaml`. Hedera is also present
+in the SDK's wider selector registry (320 testnet EVM networks, `hedera-testnet`,
+chainId 296, selector 222782988166878823) which `getNetwork()` reads.
+
+Doing that broadcast a real transaction to Hedera testnet,
+`0xbfa349a752c7a0f1c0c089ca7e7f0961a26e855b2b6f766971d59b083db51d7c`. It reverted one
+function short of the vault: the DON writes with the Keystone forwarder ABI
+`report(address,bytes,bytes,bytes[])` (`0x11289565`) while `MockCreForwarder` implements
+`forward(address,bytes,bytes)` (`0xb13ba5de`). Receipt: `status 0x0`, `gasUsed 32366`,
+zero logs — `onReport` never ran. Full analysis in `cre-end-to-end.txt`.
 
 What we do instead: the enclave produces the DON-signed report and returns it from the
 handler; the app relays it to `GodaamVault.onReport` through the CRE forwarder. The vault's
