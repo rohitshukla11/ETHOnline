@@ -129,7 +129,54 @@ Run these in order. Each has a failure mode that passes locally.
 
 ---
 
-## 4. Risk to watch on the first build
+## 4. Verifying the build before spending a deploy
+
+`rm -rf .next node_modules && npm ci && npm run build` is **not sufficient**. It keeps
+`artifacts/` and `typechain-types/`, which are gitignored and therefore absent on a CI
+checkout. That gap is what broke the first Vercel deploy: `next build` typechecks
+everything in `tsconfig.json`'s `include`, which covered `scripts/`, and
+`scripts/demo-lifecycle.ts` only typechecks when `typechain-types/` exists.
+
+```
+./scripts/demo-lifecycle.ts:197:8
+Type error: Parameter 'l' implicitly has an 'any' type.
+```
+
+Green locally, red on Vercel, every time.
+
+The check that actually reproduces CI is a tracked-files-only checkout:
+
+```bash
+rm -rf /tmp/godaam-clean && mkdir -p /tmp/godaam-clean
+git ls-files -z | tar --null -T - -cf - | (cd /tmp/godaam-clean && tar xf -)
+cd /tmp/godaam-clean && npm ci && npm run build
+```
+
+No `node_modules`, no `.next`, no `artifacts/`, no `typechain-types/`, no `.env` — the
+same inputs Vercel gets. Run this before any deploy that matters.
+
+**The fix in place:** `tsconfig.json` excludes `scripts` and `test`, so the Next build
+typechecks the Next app. Hardhat still typechecks them through
+`tsconfig.hardhat.json`, which includes `scripts/**/*.ts`, `test/**/*.ts` and
+`typechain-types/**/*.ts` under `strict`. TypeScript still follows imports out of
+included files, so `scripts/ats-issue-receipt.ts` stays covered because
+`app/api/receipts/issue/route.ts` imports it.
+
+## 5. Node version
+
+The build log warns:
+
+```
+Error: Node.js version 20.x is deprecated. Deployments created on or after 2026-10-01
+will fail to build. Please set "engines": { "node": "24.x" }
+```
+
+This is a **warning, not the failure** — the build proceeded past it. `engines.node` is
+pinned to `20.x` to match `.nvmrc` and the version everything here was built and tested
+against. Bumping to `24.x` before the submission would ship a runtime nobody has run the
+suite on. Revisit after the deadline, before any deploy dated 2026-10-01 or later.
+
+## 6. Risk to watch on the first build
 
 `app/api/receipts/issue/route.ts` dynamically imports `scripts/ats-issue-receipt.ts`,
 which pulls in `@hashgraph/asset-tokenization-sdk` and the Hedera SDK. The cold local
@@ -138,7 +185,7 @@ the deploy fails on function size, that import is the cause.
 
 ---
 
-## 5. Wiring the URL back in
+## 7. Wiring the URL back in
 
 Once the deploy is live, replace the **Live app** line at the top of `README.md`. The
 footer chain line in `components/SiteFooter.tsx` already reads its contract links from
