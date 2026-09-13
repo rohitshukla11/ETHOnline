@@ -3,10 +3,12 @@
 **Confidential agricultural lending vault.** A farmer's grain sitting in a certified
 warehouse becomes onchain collateral; a Chainlink CRE Confidential Workflow underwrites the
 *farmer* inside a TEE so the protocol can lend more than the grain alone justifies; World ID
-World ID Selfie Check ties each claim to a liveness-verified person, and the
-nullifier makes sure one identity gets one claim.
+ties each claim to a liveness-checked person, and the nullifier makes sure one identity
+gets one claim.
 
 ETHGlobal ETHOnline 2026 — Hedera / Chainlink / World tracks.
+
+**Live app: [https://godaam-ten.vercel.app](https://godaam-ten.vercel.app)**
 
 ## Bounty submissions
 
@@ -15,8 +17,6 @@ ETHGlobal ETHOnline 2026 — Hedera / Chainlink / World tracks.
 
 ## Deployment
 
-**Live app:** _not yet deployed — see `docs/vercel-deploy.md` for the exact steps and the
-environment-variable classification._
 
 Everything below runs against **Hedera testnet (chain 296)**. Contract addresses and
 Sourcify verification status are in [`docs/deployments.md`](docs/deployments.md).

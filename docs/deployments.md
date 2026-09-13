@@ -1,5 +1,7 @@
 # Godaam — Hedera Testnet Deployment
 
+**Live app: [https://godaam-ten.vercel.app](https://godaam-ten.vercel.app)**
+
 > ## Deployed 12 September 2026, 11:06 UTC
 >
 > **Hedera testnet resets periodically and wipes both contract state and Sourcify

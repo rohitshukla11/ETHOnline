@@ -3,6 +3,8 @@
 Every qualification requirement, and where it is met. File references are
 `path:line` against this commit.
 
+**Live app: [https://godaam-ten.vercel.app](https://godaam-ten.vercel.app)** — Hedera testnet, chain 296.
+
 ---
 
 ## Requirements
