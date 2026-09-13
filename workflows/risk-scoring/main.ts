@@ -28,6 +28,7 @@
 import {
 	cre,
 	handlerInTee,
+	bytesToHex,
 	hexToBase64,
 	httpRequest,
 	Runner,
@@ -46,6 +47,9 @@ const configSchema = z.object({
 	riskApiUrl: z.string(),
 	minScoreToApprove: z.number(),
 	protocolMaxLtvBps: z.number(),
+	/** Opt-in: attempt an onchain writeReport after DON signing. Absent = off, so the
+	 *  qualifying simulation path is unchanged. */
+	writeOnchain: z.boolean().optional(),
 })
 type Config = z.infer<typeof configSchema>
 
@@ -97,6 +101,10 @@ function fetchBureauTier(
 		return { tier: 1, source: 'unavailable' }
 	}
 }
+
+/** Hedera testnet. Present in the SDK chain-selector registry; absent from
+ *  EVMClient.SUPPORTED_CHAIN_SELECTORS, hence declared via experimental-chains. */
+const HEDERA_TESTNET_SELECTOR = 222782988166878823n
 
 const ASSESSMENT_ABI = [
 	{
@@ -191,7 +199,31 @@ const assessInTee = (runtime: TeeRuntime<Config>, payload: { input: Uint8Array }
 
 	runtime.log(`[TEE] report signed by the DON for loan ${assessment.loanId}`)
 
+	// Optional onchain delivery, off by default so the qualifying simulation path is
+	// unchanged when the flag is absent.
+	//
+	// `EVMClient`'s constructor takes a plain bigint - SUPPORTED_CHAIN_SELECTORS is a
+	// convenience lookup table, not a type gate - so a selector the table omits can
+	// still be passed. Hedera testnet (222782988166878823) is declared to the simulator
+	// through `experimental-chains` in project.yaml, which is the documented hatch for
+	// chains outside the capability's list.
+	let writeTxHash: string | undefined
+	if (runtime.config.writeOnchain && runtime.config.godaamVaultAddress) {
+		const evmClient = new cre.capabilities.EVMClient(HEDERA_TESTNET_SELECTOR)
+		const donRuntime = runtime.usingTheDons()
+		const writeResult = evmClient
+			.writeReport(donRuntime, {
+				receiver: runtime.config.godaamVaultAddress,
+				report: signedReport,
+				gasConfig: { gasLimit: '1000000' },
+			})
+			.result()
+		writeTxHash = bytesToHex(writeResult.txHash ?? new Uint8Array(32))
+		runtime.log(`[DON] writeReport txStatus=${writeResult.txStatus} tx=${writeTxHash}`)
+	}
+
 	return {
+		...(writeTxHash ? { writeTxHash } : {}),
 		loanId: assessment.loanId.toString(),
 		approved: assessment.approved,
 		riskScore: assessment.riskScore,

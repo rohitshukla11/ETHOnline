@@ -3,8 +3,9 @@
   "workflowName": "godaam-risk-scoring",
   "vaultUrl": "http://localhost:8080",
   "chainSelector": "hedera-testnet",
-  "godaamVaultAddress": "0x0000000000000000000000000000000000000000",
+  "godaamVaultAddress": "0x63Af372CEAa1d2C8dADF6Ea503c99edB1960d07d",
   "riskApiUrl": "https://raw.githubusercontent.com/rohitshukla11/Godaam/master/workflows/risk-scoring/fixtures/bureau-tier.json",
   "minScoreToApprove": 420,
-  "protocolMaxLtvBps": 25000
+  "protocolMaxLtvBps": 25000,
+  "writeOnchain": false
 }

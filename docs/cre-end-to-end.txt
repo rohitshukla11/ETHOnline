@@ -1,0 +1,77 @@
+Godaam - CRE end-to-end attempt: experimental-chains + writeReport
+Captured 2026-09-13T08:18:01Z. SDK 1.20.1, cre CLI.
+
+GOAL
+  Close the loop: get the DON-signed report out of the simulator and into
+  GodaamVault.onReport, so the vault disburses against an enclave-derived number
+  rather than a typed one.
+
+WHAT WORKED
+
+1. The simulator accepts Hedera as an experimental chain.
+   project.yaml:
+     experimental-chains:
+       - chain-selector: 222782988166878823
+         rpc-url: https://testnet.hashio.io/api
+         forwarder: 0xaDFc7D556C20908151e8C3C56C65b6F45648C736
+   Simulator output:
+     Loading settings...
+       Added experimental chain (chain-selector: 222782988166878823)
+
+2. EVMClient CAN be constructed for a selector outside its table.
+   EVMClient.SUPPORTED_CHAIN_SELECTORS has 63 entries and omits Hedera, but the
+   constructor signature is 'constructor(ChainSelector: bigint)' - the table is a
+   convenience lookup, not a type gate. new EVMClient(222782988166878823n) compiles
+   and runs.
+
+3. writeReport broadcast a real transaction to Hedera testnet.
+   cre workflow simulate ./workflows/risk-scoring --target=staging-settings \
+     --http-payload workflows/risk-scoring/fixtures/good-farmer.json \
+     --config config.json --broadcast --allow-unknown-chains
+
+   [USER LOG] [TEE] decision: approved=true score=893 ltv=22000bps principal=880000000 (6dp) bureau=live
+   [USER LOG] [TEE] report signed by the DON for loan 1
+   [USER LOG] [DON] writeReport txStatus=1 tx=0xbfa349a752c7a0f1c0c089ca7e7f0961a26e855b2b6f766971d59b083db51d7c
+
+WHERE IT STOPS
+
+   The transaction is real and it REVERTED.
+
+   eth_getTransactionReceipt 0xbfa349a7...:
+     status   0x0          <- reverted
+     to       0xadfc7d556c20908151e8c3c56c65b6f45648c736   (MockCreForwarder)
+     from     0xff67f768bbfb28793920383cedbb237cd8136eb6   (attestor, funded)
+     gasUsed  32366
+     logs     0            <- onReport never ran
+
+   Cause, from the calldata:
+     selector     0x11289565  =  report(address,bytes,bytes,bytes[])
+     calldata     1380 bytes
+
+   That is the Chainlink Keystone forwarder ABI. MockCreForwarder implements
+     forward(address,bytes,bytes)   0xb13ba5de
+   so there is no matching function and the call reverts before reaching the vault.
+
+   No vault guard was touched. onlyForwarder and the workflowOwner check are
+   unmodified; the call never got far enough to be tested against them.
+
+WHAT WOULD CLOSE IT
+
+   MockCreForwarder would need to implement report(address,bytes,bytes,bytes[]),
+   unpack rawReport and reportContext, and call receiver.onReport with metadata in
+   the CRE layout the vault parses ([32B workflowId][10B workflowName]
+   [20B workflowOwner][2B reportId]). Cost: a contract change plus a redeploy,
+   which forfeits MockCreForwarder's Sourcify exact_match verification, plus an
+   owner transaction to repoint GodaamVault.creForwarder. And it could still fail
+   at the vault's workflowOwner check if the DON's reportContext does not carry an
+   owner in that layout - so the redeploy might buy a second revert.
+
+   Not attempted. Deferred deliberately rather than for lack of time: the attempt
+   above took 8 minutes of a 45-minute budget.
+
+SDK ISSUE FOUND
+
+   writeResult.txStatus was 1 (SUCCESS) for a transaction that reverted onchain
+   with status 0x0. The SDK's success value reflects broadcast acceptance, not
+   execution. A workflow that trusts txStatus would report a successful settlement
+   that never happened. See docs/chainlink-feedback.md.

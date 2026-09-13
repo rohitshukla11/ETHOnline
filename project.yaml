@@ -19,3 +19,7 @@ staging-settings:
   rpcs:
     - chain-name: ethereum-testnet-sepolia
       url: https://ethereum-sepolia-rpc.publicnode.com
+  experimental-chains:
+    - chain-selector: 222782988166878823
+      rpc-url: https://testnet.hashio.io/api
+      forwarder: "0xaDFc7D556C20908151e8C3C56C65b6F45648C736"

@@ -202,3 +202,87 @@ degradation is the minimum; refusing to score might be the correct default. A do
 pattern for partial-input handling in confidential workflows would be genuinely useful,
 because the failure is invisible by default and the number that comes out looks
 completely normal.
+
+---
+
+## 7. `writeReport` returns `txStatus: SUCCESS` for a transaction that reverted
+
+**SDK 1.20.1, `cre workflow simulate --broadcast`.**
+
+A `writeReport` call against a chain declared through `experimental-chains` broadcast a
+real transaction to Hedera testnet and reported success:
+
+```
+[DON] writeReport txStatus=1 tx=0xbfa349a752c7a0f1c0c089ca7e7f0961a26e855b2b6f766971d59b083db51d7c
+```
+
+`TxStatus.SUCCESS` is `1`. The transaction reverted:
+
+```
+eth_getTransactionReceipt:
+  status   0x0
+  gasUsed  32366
+  logs     0
+```
+
+The receiver contract was never called. `txStatus` appears to reflect that the
+transaction was accepted for broadcast, not that it executed.
+
+**Why it matters.** The template's own error handling is
+
+```ts
+if (writeResult.txStatus !== TxStatus.SUCCESS) {
+  throw new Error(`onchain write failed with status ${writeResult.txStatus}`);
+}
+```
+
+so a workflow following the reference pattern will treat a reverted settlement as a
+successful one and return a receipt for something that did not happen. For a lending
+protocol that is the difference between a disbursement and a claimed disbursement.
+
+**Suggested fix:** await the receipt and surface the execution status, or rename the
+field so it cannot be read as execution success — `broadcastStatus` would be honest.
+
+## 8. `experimental-chains` works for chains that ARE in the selector registry
+
+The comment in the template `project.yaml` says experimental chains are "for chains not
+yet in official chain-selectors (e.g., hackathons, new chain integrations)". Hedera
+testnet **is** in the registry that `getNetwork()` reads — 320 testnet EVM networks,
+including `hedera-testnet`, chainId 296, selector 222782988166878823. What it is missing
+from is `EVMClient.SUPPORTED_CHAIN_SELECTORS`, which has 63 entries.
+
+Declaring it as an experimental chain works anyway, which is the useful behaviour — but
+the documentation describes a different condition than the one that actually applies.
+Worth rewording to something like "for chains the EVM capability does not list", since
+that is the case a builder actually hits.
+
+## 9. Confidential Workflow secrets cannot be exercised without Vault DON access
+
+The bounty leads with "Secrets can be fetched directly inside the enclave", and
+`TeeRuntime` extends `SecretsProvider`, so `runtime.getSecret({ id })` is available on the
+TEE runtime exactly as advertised.
+
+What is not available is a local path to a secret value. `cre secrets --help`:
+
+```
+Create, update, delete, list secrets in Vault DON.
+  --secrets-auth string   Authentication mode: onchain uses a wallet key for secrets on
+                          the on-chain registry; browser uses account credentials for
+                          secrets on the private registry.
+```
+
+Secrets live in a Vault DON and are provisioned against an owner address or account
+credentials. `cre workflow simulate` has no secrets flag, and a `secrets.yaml` beside
+`project.yaml` mapping id to environment variable — the shape the official templates
+use — produced no secrets output in the simulator and no resolved value. The call fails
+inside the workflow, which for us meant the bureau lookup fell through to its
+unavailable branch.
+
+So a builder without deploy access can demonstrate `ConfidentialHTTPClient` but cannot
+demonstrate the secrets mechanism at all, even though the templates present the two
+side by side and the README implies `.env` is sufficient for local simulation.
+
+**Suggested fix:** resolve `secrets.yaml` from the local environment during
+`cre workflow simulate`, the way the templates' README reads as though it already does.
+A simulator-only resolution path would let the secrets story be exercised before deploy
+access is granted, which is when most people are building.

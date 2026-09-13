@@ -77,22 +77,27 @@ different lists**:
 | `dist/generated/chain-selectors/testnet/evm/` — what `getNetwork()` resolves | 320 | **present** — chainId 296, selector `222782988166878823` |
 | `EVMClient.SUPPORTED_CHAIN_SELECTORS` — what the EVM capability can write to | 63 | **absent** |
 
-So this succeeds:
+`SUPPORTED_CHAIN_SELECTORS` is a convenience lookup table, **not** a type gate - the
+constructor signature is `constructor(ChainSelector: bigint)` - so a selector the table
+omits can still be passed:
 
 ```ts
-getNetwork({ chainFamily: 'evm', chainSelectorName: 'hedera-testnet' })
+new EVMClient(222782988166878823n)   // hedera-testnet: compiles and runs
 ```
 
-and this cannot be constructed for Hedera, because `SUPPORTED_CHAIN_SELECTORS` is a typed
-union that does not contain it:
+Declaring Hedera through `experimental-chains` in [`project.yaml`](../project.yaml) makes
+the simulator accept it (`Added experimental chain (chain-selector: 222782988166878823)`),
+and `--broadcast` sends a real transaction to Hedera testnet.
 
-```ts
-new EVMClient(network.chainSelector.selector)
-```
+It stops one step short of the vault. The DON writes with the Keystone forwarder ABI,
+`report(address,bytes,bytes,bytes[])` / `0x11289565`, and `MockCreForwarder` implements
+`forward(address,bytes,bytes)` / `0xb13ba5de`, so the transaction reverts before
+`onReport` runs. Full transcript, receipt and calldata analysis in
+[`cre-end-to-end.txt`](cre-end-to-end.txt).
 
 The DON-signed report is therefore returned to the caller and relayed to
-`GodaamVault.onReport` through the CRE forwarder. The forwarder and `workflowOwner` checks
-on the vault are unmodified.
+`GodaamVault.onReport` through the forwarder by the application. The `onlyForwarder` and
+`workflowOwner` checks on the vault are unmodified.
 
 ### 3. The unused Sepolia RPC entry is the documented shape
 
