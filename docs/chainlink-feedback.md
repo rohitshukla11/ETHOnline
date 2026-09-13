@@ -243,6 +243,52 @@ protocol that is the difference between a disbursement and a claimed disbursemen
 **Suggested fix:** await the receipt and surface the execution status, or rename the
 field so it cannot be read as execution success — `broadcastStatus` would be honest.
 
+### What we do instead
+
+The finding ships with a guard. Every `writeReport` call site in this repo verifies the
+receipt before treating a write as settled —
+[`workflows/risk-scoring/main.ts`](../workflows/risk-scoring/main.ts), immediately after
+the write:
+
+```ts
+let onchainStatus: bigint | undefined
+try {
+  onchainStatus = evmClient
+    .getTransactionReceipt(donRuntime, { hash: hexToBase64(writeTxHash) })
+    .result().receipt?.status
+} catch (err) {
+  throw new Error(`settlement unverified ... Treating as failed - txStatus alone is not proof of settlement.`)
+}
+if (onchainStatus !== 1n) {
+  throw new Error(`settlement REVERTED ... despite txStatus=${writeResult.txStatus}. No disbursement occurred.`)
+}
+```
+
+`EVMClient.getTransactionReceipt` is available in the workflow environment, so the guard
+sits at the call site rather than in a layer above it.
+
+Three rules it follows:
+
+1. **The receipt decides, not `txStatus`.**
+2. **A receipt that cannot be read is a failure, not a pass.** Unknown is not success.
+3. **It throws.** No silent downgrade — the same rule as `bureauSource`, which declares a
+   degraded input rather than hiding it.
+
+Verified by enabling the path and letting it hit the known revert:
+
+```
+[DON] writeReport txStatus=1 tx=0x49de8974f9f3630b7aa57452929271c47ca4a74d84365f4f7aa788660a810aa1
+✗ workflow execution failed: settlement REVERTED for loan 1:
+  0x49de8974... has onchain status 0 despite txStatus=1. No disbursement occurred.
+```
+
+Exit code 1. That is a second independent reproduction of the bug, with a different
+transaction hash from the one reported above.
+
+For a lending protocol the motivation is narrow: believing a disbursement happened when
+no money moved is the worst failure available, and a plausible success signal with
+nothing behind it is worse than an honest error.
+
 ## 8. `experimental-chains` works for chains that ARE in the selector registry
 
 The comment in the template `project.yaml` says experimental chains are "for chains not

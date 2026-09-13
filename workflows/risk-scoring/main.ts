@@ -229,6 +229,41 @@ const assessInTee = (runtime: TeeRuntime<Config>, payload: { input: Uint8Array }
 			.result()
 		writeTxHash = bytesToHex(writeResult.txHash ?? new Uint8Array(32))
 		runtime.log(`[DON] writeReport txStatus=${writeResult.txStatus} tx=${writeTxHash}`)
+
+		// `txStatus` is NOT proof of settlement. It appears to mean "accepted for
+		// broadcast", not "executed". Verified against this chain: transaction
+		// 0xbfa349a752c7a0f1c0c089ca7e7f0961a26e855b2b6f766971d59b083db51d7c came back
+		// with txStatus SUCCESS and an onchain status of 0x0 - reverted, 32366 gas, zero
+		// logs, receiver never called. The reference template
+		// (ai-audit-firewall main.ts:355) branches on txStatus alone and would have
+		// treated that as a completed write. See docs/chainlink-feedback.md §7.
+		//
+		// So the receipt decides. A revert throws, and so does a receipt we cannot read:
+		// unknown is not success. This is a lending protocol - believing money moved when
+		// it did not is the worst failure available here, and it is the same rule as
+		// bureauSource, which declares a degraded input rather than hiding it.
+		// `status` is a bigint on the Message form of the reply, not the '1'/'0' string
+		// of its JSON shape. 1 is success, 0 is failure.
+		let onchainStatus: bigint | undefined
+		try {
+			onchainStatus = evmClient
+				.getTransactionReceipt(donRuntime, { hash: hexToBase64(writeTxHash) })
+				.result().receipt?.status
+		} catch (err) {
+			throw new Error(
+				`settlement unverified for loan ${assessment.loanId}: receipt for ${writeTxHash} ` +
+					`could not be read (${err instanceof Error ? err.message : String(err)}). ` +
+					'Treating as failed - txStatus alone is not proof of settlement.',
+			)
+		}
+		if (onchainStatus !== 1n) {
+			throw new Error(
+				`settlement REVERTED for loan ${assessment.loanId}: ${writeTxHash} has onchain ` +
+					`status ${onchainStatus ?? 'unknown'} despite txStatus=${writeResult.txStatus}. ` +
+					'No disbursement occurred.',
+			)
+		}
+		runtime.log(`[DON] settlement confirmed onchain: ${writeTxHash} status=1`)
 	}
 
 	return {
