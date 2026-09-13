@@ -37,6 +37,21 @@ through the CRE CLI and its output submitted verbatim
 another address sees an empty ledger — the position is inspectable on HashScan by anyone,
 but only that wallet renders it in the app.
 
+## Contracts
+
+All six Sourcify-verified at `exact_match`. Full configuration, transaction hashes and
+verification status in [`docs/deployments.md`](docs/deployments.md).
+
+| Contract | Address (Hedera testnet, chain 296) |
+| --- | --- |
+| `WorldIdRegistry` | [`0xE3a02179CCa05b438bd157E2E00434d28ec26984`](https://hashscan.io/testnet/contract/0xE3a02179CCa05b438bd157E2E00434d28ec26984) |
+| `MockUSDC` | [`0x2CEBEA8360D0c71B78f320F7CdF4D06486ad9DCd`](https://hashscan.io/testnet/contract/0x2CEBEA8360D0c71B78f320F7CdF4D06486ad9DCd) |
+| `WarehouseReceipt` | [`0x0F2b3D243BB0e882dE0aB9Ed0b2754e8f473EaD7`](https://hashscan.io/testnet/contract/0x0F2b3D243BB0e882dE0aB9Ed0b2754e8f473EaD7) |
+| `GodaamVault` | [`0x63Af372CEAa1d2C8dADF6Ea503c99edB1960d07d`](https://hashscan.io/testnet/contract/0x63Af372CEAa1d2C8dADF6Ea503c99edB1960d07d) |
+| `MockCreForwarder` | [`0xaDFc7D556C20908151e8C3C56C65b6F45648C736`](https://hashscan.io/testnet/contract/0xaDFc7D556C20908151e8C3C56C65b6F45648C736) |
+| `CollateralNavOracle` | [`0x3f0669a7CAD6243AaC7cc5547B2C72557375B82D`](https://hashscan.io/testnet/contract/0x3f0669a7CAD6243AaC7cc5547B2C72557375B82D) |
+| **ATS security token** `GWR-WHE` | [`0.0.10508257`](https://hashscan.io/testnet/contract/0.0.10508257) |
+
 ## Bounty submissions
 
 - **Chainlink CRE** — [`docs/chainlink-submission.md`](docs/chainlink-submission.md)
