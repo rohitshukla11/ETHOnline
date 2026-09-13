@@ -22,15 +22,23 @@ function RiskForm({ loanId, collateralValue }: { loanId: bigint; collateralValue
   const { address } = useAccount();
   const [landRecordRef, setLandRecordRef] = useState("MH-PUN-0421/2A");
   const [yields, setYields] = useState("3120, 2980, 3240, 3050, 3190");
-  const [history, setHistory] = useState("PACS-Baramati:120000:0, SBI-KCC:240000:12");
+  // Matches workflows/risk-scoring/fixtures/good-farmer.json exactly. Dropping the third
+  // entry scores 881 rather than 893, which would put a different number on screen from
+  // the one the seeded loan and the evidence transcripts carry.
+  const [history, setHistory] = useState(
+    "PACS-Baramati:120000:0, SBI-KCC:240000:12, NABARD-SHG:80000:0"
+  );
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<AssessmentResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // A missing CRE trigger is a deployment state, not something the user did wrong.
+  const [noTrigger, setNoTrigger] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
+    setNoTrigger(false);
     try {
       const res = await submitRiskInputs({
         loanId: loanId.toString(),
@@ -53,7 +61,11 @@ function RiskForm({ loanId, collateralValue }: { loanId: bigint; collateralValue
       // developer reading logs and wrong for a visitor reading a page, so the detail
       // goes to the console and the screen says what the user can act on.
       console.error("[cre] assessment failed:", err);
-      setError("Confidential underwriting is unavailable right now.");
+      // Classified from the message but never showing it: the route names env vars,
+      // which is right for a log and wrong for a page.
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/CRE_TRIGGER_URL|trigger/i.test(msg)) setNoTrigger(true);
+      else setError("Confidential underwriting could not be completed. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -113,6 +125,26 @@ function RiskForm({ loanId, collateralValue }: { loanId: bigint; collateralValue
       </button>
 
       {error && <p className="text-[13px] text-bad">{error}</p>}
+
+      {noTrigger && (
+        <div className="rounded-card border border-border bg-surface p-4">
+          <p className="text-[14px] text-text">
+            Live underwriting needs a deployed CRE workflow trigger, which isn&apos;t
+            running yet.
+          </p>
+          <p className="mt-2 text-[13px] leading-relaxed text-muted">
+            The enclave itself works — its scoring was run through the CRE CLI and the
+            output submitted onchain, so there is a real position underwritten by it
+            rather than by a typed number.
+          </p>
+          <Link
+            href="/loan/1"
+            className="btn-ghost mt-3 w-full sm:w-auto"
+          >
+            See the underwritten loan
+          </Link>
+        </div>
+      )}
 
       {result && (
         <div className="space-y-3 border-t border-border pt-4">

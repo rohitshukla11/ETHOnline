@@ -164,5 +164,5 @@ plainly that Selfie Check access was requested and is pending. `npm run check:wo
 -- --live` produces exactly that evidence: every check green except a feature gate.
 
 That is a better story than a silent gap, and it is the same honest-disclosure shape
-used elsewhere in this project — see Finding 7 in
+used elsewhere in this project — see the allowlist finding in area 4 of
 [world-feedback.md](world-feedback.md).

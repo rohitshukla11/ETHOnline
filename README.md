@@ -56,6 +56,11 @@ verification status in [`docs/deployments.md`](docs/deployments.md).
 
 - **Chainlink CRE** — [`docs/chainlink-submission.md`](docs/chainlink-submission.md)
   maps each qualification requirement to its evidence, with file and line references.
+  **Underwriting runs for real locally**: `/api/cre/assess` invokes the CRE CLI, scores
+  the submitted confidential inputs in the simulator and returns the enclave's actual
+  terms. Serverless has no CRE binary, so the deployed instance detects that and links to
+  [`/loan/1`](https://godaam-ten.vercel.app/loan/1) — a position already underwritten by
+  the enclave — rather than pretending to run one.
   The workflow is [`workflows/risk-scoring/main.ts`](workflows/risk-scoring/main.ts);
   runs are captured in [`docs/cre-simulation-run.txt`](docs/cre-simulation-run.txt) and
   [`docs/cre-bureau-provenance.txt`](docs/cre-bureau-provenance.txt).
@@ -308,7 +313,7 @@ forfeits five `exact_match` verifications.
 - Reaching Selfie Check required enabling World ID 4.0: every IDKit preset goes through
   `IDKit.request`, whose `rp_context` is required and must be signed by the Relying Party
   key server-side. That signing route is [app/api/rp-signature](app/api/rp-signature/route.ts);
-  the key never carries a `NEXT_PUBLIC_` prefix. Written up as Finding 1 in
+  the key never carries a `NEXT_PUBLIC_` prefix. Written up under area 1 in
   [docs/world-feedback.md](docs/world-feedback.md)
 - The credential check is an allowlist, not a blocklist: `lib/worldid-policy.ts` asserts the
   level against an explicit set and rejects everything else, so a future credential cannot
@@ -321,9 +326,14 @@ forfeits five `exact_match` verifications.
   it is a Beta credential that World enables per app on request, and that request is
   pending. Until it lands, a proof cannot be completed. See
   [docs/worldid-selfiecheck-runbook.md](docs/worldid-selfiecheck-runbook.md) for the exact
-  steps once it does, and Finding 7 in [docs/world-feedback.md](docs/world-feedback.md)
+  steps once it does, and the allowlist finding in area 4 of
+  [docs/world-feedback.md](docs/world-feedback.md)
 - Nullifier reuse across addresses is rejected (`NullifierAlreadyUsed`)
-- Integration feedback: [docs/world-feedback.md](docs/world-feedback.md)
+- Integration feedback: [docs/world-feedback.md](docs/world-feedback.md) — structured to
+  the four areas the bounty names: Selfie Check docs and integration flow; Developer
+  Portal navigation, search, discovery and debugging; Sandbox states, proof flows,
+  test users, errors and edge cases; and what was confusing, missing, broken or hard
+  to test
 
 ## Demo recordings
 
