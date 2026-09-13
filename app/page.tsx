@@ -33,6 +33,18 @@ export default function Home() {
             How it works
           </Link>
         </div>
+
+        {/* No wallet needed: the position is read straight off the verified vault. */}
+        <p className="mt-5 text-[14px] text-muted">
+          Or{" "}
+          <Link
+            href="/loan/1"
+            className="text-text underline underline-offset-4 hover:text-wheat"
+          >
+            inspect a real loan
+          </Link>{" "}
+          — 880 gUSDC against 400 of grain, underwritten in a TEE.
+        </p>
       </section>
 
       <HowItWorks />

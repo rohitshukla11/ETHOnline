@@ -1,22 +1,40 @@
+import { Fragment } from "react";
+
 /** Shared primitives for the v2 interface. Presentation only. */
 
 /**
  * Segmented progress. One segment per installment, filled segments in wheat.
  * Both counts come straight off the loan struct, so nothing here is inferred.
  */
-export function Segments({ total, filled }: { total: number; filled: number }) {
+export function Segments({
+  total,
+  filled,
+  label,
+  markAt,
+}: {
+  total: number;
+  filled: number;
+  label?: string;
+  /** Draw a divider after this many segments, to mark a threshold inside the track
+   *  rather than at its end. */
+  markAt?: number;
+}) {
   if (total <= 0) return null;
   return (
     <div
-      className="flex gap-1"
+      className="flex items-center gap-1"
       role="img"
-      aria-label={`${filled} of ${total} installments paid`}
+      aria-label={label ?? `${filled} of ${total}`}
     >
       {Array.from({ length: total }, (_, i) => (
-        <span
-          key={i}
-          className={`h-[5px] flex-1 rounded-pill ${i < filled ? "bg-wheat" : "bg-border"}`}
-        />
+        <Fragment key={i}>
+          <span
+            className={`h-[5px] flex-1 rounded-pill ${i < filled ? "bg-wheat" : "bg-border"}`}
+          />
+          {markAt === i + 1 && i + 1 < total && (
+            <span className="h-[11px] w-[2px] shrink-0 rounded-pill bg-wheat-edge" />
+          )}
+        </Fragment>
       ))}
     </div>
   );
