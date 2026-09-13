@@ -49,7 +49,11 @@ function RiskForm({ loanId, collateralValue }: { loanId: bigint; collateralValue
       });
       setResult(res);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      // The route's messages name env vars and npm scripts. That is right for a
+      // developer reading logs and wrong for a visitor reading a page, so the detail
+      // goes to the console and the screen says what the user can act on.
+      console.error("[cre] assessment failed:", err);
+      setError("Confidential underwriting is unavailable right now.");
     } finally {
       setBusy(false);
     }

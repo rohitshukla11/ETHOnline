@@ -7,7 +7,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 export const metadata: Metadata = {
   title: "Godaam - Confidential Agricultural Lending Vault",
   description:
-    "Tokenized warehouse receipts on Hedera, confidential credit scoring in a Chainlink CRE TEE, World ID Selfie Check identity gating.",
+    "Tokenized warehouse receipts on Hedera, confidential credit scoring in a Chainlink CRE TEE, World ID identity gating.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

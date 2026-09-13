@@ -277,6 +277,18 @@ forfeits five `exact_match` verifications.
   are kept in [docs/upstream-ats-issue.md](docs/upstream-ats-issue.md)
 
 ### World — Selfie Check
+- **Why the accepted-credential set is an allowlist, and why Selfie Check is not in it
+  yet.** [`lib/worldid-policy.ts`](lib/worldid-policy.ts) holds one constant,
+  `ACCEPTED_VERIFICATION_LEVELS`, and the Verify screen renders its chips from that
+  constant rather than from hardcoded labels — so the interface cannot advertise a
+  credential the server would reject. The set is `orb` and `document`. Selfie Check is
+  absent because the v4 verify response reports the credential in
+  `results[].identifier` and the exact string Selfie Check returns is undocumented.
+  Guessing it has two failure modes and both are bad: guess wrong and every genuine
+  proof is rejected, or widen the set until something passes and the gate stops
+  enforcing what it claims. The previous implementation rejected only `device`, which
+  fails open on every credential World ships in future; a test asserts the set is
+  exactly these two for that reason.
 - Gate, not a checkmark: `WarehouseReceipt.grantKyc` reverts with
   `WorldIdVerificationRequired` unless the nullifier is onchain, so no verification means no
   collateral, which means no loan

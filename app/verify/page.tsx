@@ -3,6 +3,7 @@
 import { selfieCheckLegacy, useIDKitRequest, type RpContext } from "@worldcoin/idkit";
 import { useCallback, useEffect, useState } from "react";
 import { useAccount } from "wagmi";
+import { ConnectButton } from "@/components/ConnectButton";
 import { useVerification } from "@/components/useVerification";
 import { WorldIdQr } from "@/components/WorldIdQr";
 import { hashscanAddress, hashscanTx } from "@/lib/chains";
@@ -127,24 +128,51 @@ export default function VerifyPage() {
         </span>
       </header>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid items-start gap-5 lg:grid-cols-2">
         {/* ── Scan panel ─────────────────────────────────────────────── */}
-        <section className="card flex flex-col items-center p-6 text-center sm:p-8">
-          {/* The frame is constant across every state so the screen does not
-              restructure as the wallet connects or the request is signed. Only what
-              sits under it changes. */}
-          <h2 className="text-[19px]">
-            {isVerified ? "Identity bound to this address" : "Verify with World ID"}
-          </h2>
-          <p className="mt-1.5 text-[14px] text-muted">
-            {isVerified
-              ? "Cleared for receipt tokenization and borrowing."
-              : "Scan with World App to prove you\u2019re a real person"}
-          </p>
-
+        {/* The panel offers exactly what the user can do next. Not connected means
+            the only possible action is connecting, so that is all it shows - no QR
+            frame standing in for one that cannot exist yet. */}
+        <section className="card flex flex-col items-center self-start p-6 text-center sm:p-8">
           {isVerified ? (
-            <VerifiedPanel address={address} txHash={txHash} />
-          ) : rpContext && isConnected ? (
+            <>
+              <span className="pill">Verified</span>
+              <h2 className="mt-4 text-[19px]">Identity confirmed</h2>
+              <p className="fig mt-2 break-all text-[13px] text-muted">{address}</p>
+              {txHash && (
+                <a
+                  className="mt-4 text-[14px] text-wheat underline-offset-4 hover:underline"
+                  href={hashscanTx(txHash)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  View attestation on HashScan ↗
+                </a>
+              )}
+            </>
+          ) : !isConnected ? (
+            <>
+              <h2 className="text-[19px]">Verify with World ID</h2>
+              <p className="mt-2 max-w-[36ch] text-[14px] leading-relaxed text-muted">
+                Your proof is tied to your wallet address, so connect one to begin.
+              </p>
+              <div className="mt-6">
+                <ConnectButton />
+              </div>
+            </>
+          ) : rpError ? (
+            <>
+              <h2 className="text-[19px]">Verify with World ID</h2>
+              <p className="mt-2 max-w-[36ch] text-[14px] leading-relaxed text-muted">
+                Verification is unavailable right now. Selfie Check access is pending.
+              </p>
+            </>
+          ) : !rpContext ? (
+            <>
+              <h2 className="text-[19px]">Verify with World ID</h2>
+              <p className="mt-2 text-[14px] text-muted">Preparing your request…</p>
+            </>
+          ) : (
             <VerifyAction
               rpContext={rpContext}
               signal={address as string}
@@ -152,30 +180,18 @@ export default function VerifyPage() {
               status={status}
               error={error}
             />
-          ) : (
-            <>
-              <div className="mt-6 flex justify-center">
-                <WorldIdQr uri={null} />
-              </div>
-              {rpError ? (
-                <>
-                  <span className="pill-bad mt-6">Not configured</span>
-                  <p className="mt-3 max-w-[42ch] text-[13px] leading-relaxed text-muted">
-                    {rpError}
-                  </p>
-                </>
-              ) : !isConnected ? (
-                <p className="mt-6 max-w-[42ch] text-[13px] leading-relaxed text-muted">
-                  Connect a wallet first — the proof is bound to the address it
-                  verifies.
-                </p>
-              ) : (
-                <p className="mt-6 text-[13px] text-muted">
-                  Preparing a signed proof request…
-                </p>
-              )}
-            </>
           )}
+
+          {/* Moved here so the two columns balance once the frame is gone. It is also
+              the one piece of prose that belongs beside the action it describes. */}
+          <div className="card-tint mt-6 w-full space-y-2 p-5 text-left">
+            <p className="text-[15px] font-medium text-wheat">What is recorded</p>
+            <p className="text-[14px] leading-relaxed text-muted">
+              Only a nullifier — a one-way identifier unique to you and this action. No
+              biometric, no document, no personal data. A second address presenting the
+              same nullifier is refused onchain.
+            </p>
+          </div>
         </section>
 
         {/* ── Status column ──────────────────────────────────────────── */}
@@ -220,11 +236,7 @@ export default function VerifyPage() {
                   Device — refused
                 </span>
               </div>
-              <p className="mt-2 text-[12px] leading-snug text-muted">
-                Selfie Check is requested but not yet in the allowlist: its credential
-                identifier is undocumented, and guessing it would either reject every
-                real proof or be widened until one passed.
-              </p>
+              <p className="mt-2 text-[12px] text-muted">Selfie Check access is pending.</p>
             </div>
 
             <div className="border-t border-border pt-3">
@@ -249,36 +261,9 @@ export default function VerifyPage() {
             </div>
           </section>
 
-          <section className="card-tint space-y-2 p-5 sm:p-6">
-            <p className="text-[15px] font-medium text-wheat">What is recorded</p>
-            <p className="text-[14px] leading-relaxed text-muted">
-              Only a nullifier — a one-way identifier unique to you and this action. No
-              biometric, no document, no personal data. A second address presenting the
-              same nullifier is refused onchain.
-            </p>
-          </section>
         </div>
       </div>
     </div>
-  );
-}
-
-function VerifiedPanel({ address, txHash }: { address?: string; txHash: string | null }) {
-  return (
-    <>
-      <span className="pill mt-6">Verified</span>
-      <p className="fig mt-4 break-all text-[13px] text-muted">{address}</p>
-      {txHash && (
-        <a
-          className="mt-4 text-[14px] text-wheat underline-offset-4 hover:underline"
-          href={hashscanTx(txHash)}
-          target="_blank"
-          rel="noreferrer"
-        >
-          View attestation on HashScan ↗
-        </a>
-      )}
-    </>
   );
 }
 

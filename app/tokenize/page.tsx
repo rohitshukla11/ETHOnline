@@ -61,7 +61,14 @@ function Form() {
       if (!res.ok) throw new Error(body.error ?? "Issuance failed");
       setResult(body);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      // Same rule: a route may name an env var, a page may not.
+      console.error("[receipts] issuance failed:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(
+        /NEXT_PUBLIC_|npm run|not configured|key/i.test(msg)
+          ? "Receipt issuance is unavailable right now."
+          : msg
+      );
     } finally {
       setBusy(false);
     }
